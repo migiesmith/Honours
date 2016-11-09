@@ -27,8 +27,8 @@ public class Main{
 		
 		try {
 			//JADE gui
-		    AgentController rma = myContainer.createNewAgent("rma", "jade.tools.rma.rma", null);
-		    rma.start();
+		    //AgentController rma = myContainer.createNewAgent("rma", "jade.tools.rma.rma", null);
+		    //rma.start();
 		    
 		    
 		    AgentController auctioneer = myContainer.createNewAgent("Auctioneer", MyAuctioneer.class.getCanonicalName(), null);
