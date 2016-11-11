@@ -1,10 +1,10 @@
 "BATCH	",
 blon-1,9
 blon-2,26
-blon-4,30
+blon-4,36
 blon-8,48
 blon-r00,48
-blon-rnd,29
+blon-rnd,30
 cluster-1,7
 cluster-2,17
 cluster-4,21
@@ -13,13 +13,13 @@ cluster-r00,27
 cluster-rnd,20
 lon-1,5
 lon-2,21
-lon-4,24
-lon-8,28
+lon-4,26
+lon-8,30
 lon-r00,28
 lon-rnd,15
 offset-1,10
-offset-2,23
-offset-4,36
+offset-2,25
+offset-4,39
 offset-8,48
 offset-r00,45
 offset-rnd,28
