@@ -31,7 +31,7 @@ public class Main{
 		    //rma.start();
 		    
 		    
-		    AgentController auctioneer = myContainer.createNewAgent("Auctioneer", MyAuctioneer.class.getCanonicalName(), null);
+		    AgentController auctioneer = myContainer.createNewAgent("Auctioneer", MBCAuctioneer.class.getCanonicalName(), null);
 		    auctioneer.start();
 		    
 		    AgentController mapServer = myContainer.createNewAgent("Map-Server", MapServer.class.getCanonicalName(), null);
