@@ -3,16 +3,18 @@ package com.migie.smith;
 
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import com.migie.smith.TimingRepresentation.TimeType;
 import com.migie.smith.gui.MBCPlayerBidderGui;
 
 import agent.auctionSolution.Bidder;
 import agent.auctionSolution.JourneyInfoHelper;
 import agent.auctionSolution.bidder.BidderBehaviour;
 import agent.auctionSolution.dataObjects.Depot;
-import agent.auctionSolution.dataObjects.Route;
 import agent.auctionSolution.dataObjects.VisitData;
 import agent.auctionSolution.dataObjects.carShare.CarShare;
 import agent.auctionSolution.dataObjects.carShare.CarShareRequest;
@@ -23,13 +25,13 @@ import jade.content.onto.OntologyException;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
-import jade.wrapper.StaleProxyException;
 
 public class MBCPlayerBidder extends Bidder {
 
 	// The gui for this bidder
 	protected MBCPlayerBidderGui gui;
 	protected MBCBidderBehaviour behaviour;
+	
 	
 	@Override
 	protected void setup(){
@@ -45,6 +47,14 @@ public class MBCPlayerBidder extends Bidder {
 	
 	public Depot getDepot(){
 		return behaviour.depot;
+	}
+	
+	public double getCost(VisitData v, int position){
+		return behaviour.costForAddingAt(v, position);
+	}
+	
+	public double getReward(VisitData v, int position){
+		return 0.0;
 	}
 	
 	
@@ -74,9 +84,45 @@ public class MBCPlayerBidder extends Bidder {
 			v.setX(visitCoords.x);
 			v.setY(visitCoords.y);
 			
-			gui.renderTurn(route.visits, possibleLocations, v);
+			
+			List<TimingRepresentation> times = new ArrayList<TimingRepresentation>();
+			if(route.visits.size() > 0){
+				Calendar cal = Calendar.getInstance();
+				cal.setTime(depot.commenceTime);
+				int initTravelTime = (int) journeyInfo.getTravelTime(myAgent, depot.location, route.visits.get(0).location, route.visits.get(0).transport);
+				times.add(new TimingRepresentation(initTravelTime, TimeType.Travel));
+				cal.add(Calendar.MINUTE, initTravelTime);
+				for(int i = 0; i < route.visits.size(); i++){
+					VisitData vd = route.visits.get(i);
+					if (cal.getTime().before(vd.windowStart)) {
+						if(i == 0){
+							cal.setTime(route.visits.get(0).windowStart);
+						    long diffInMillies = depot.commenceTime.getTime() - cal.getTime().getTime();
+						    int timeDiff = (int) TimeUnit.MINUTES.convert(diffInMillies,TimeUnit.MILLISECONDS);
+							times.add(new TimingRepresentation(timeDiff, TimeType.Empty));
+						}
+					}
+					
+					cal.add(Calendar.MINUTE, (int) vd.visitLength);
+					times.add(new TimingRepresentation((int)vd.visitLength, TimeType.Visit));
+					
+					if(vd instanceof CarShare){
+						int travelTime = (int) journeyInfo.getTravelTime(myAgent, ((CarShare) vd).endLocation, (i+1 == route.visits.size() ? depot.location : route.visits.get(i+1).location), vd.transport);	
+						cal.add(Calendar.MINUTE, travelTime);	
+						times.add(new TimingRepresentation(travelTime, TimeType.Travel));
+					}else{
+						int travelTime = (int) journeyInfo.getTravelTime(myAgent, vd.location, (i+1 == route.visits.size() ? depot.location : route.visits.get(i+1).location), vd.transport);
+						cal.add(Calendar.MINUTE, travelTime);
+						times.add(new TimingRepresentation(travelTime, TimeType.Travel));
+					}
+				}
+			}
+			
+			
+			gui.renderTurn(route.visits, possibleLocations, v, times);
 			gui.setGameState("Bidding for " + v.name);
 			moveMade = false;
+			
 		}
 
 		private void getXYCoords(List<VisitData> visits){
@@ -210,15 +256,14 @@ public class MBCPlayerBidder extends Bidder {
 				double cost1 = getJourneyCost(v.location, depot.location, minimiseFactor, v.transport);
 				double currentCost = getJourneyCost(route.visits.get(position-1).location, depot.location, minimiseFactor, v.transport);
 				
-				return currentCost - (cost0 + cost1) + (minimiseFactor.equals("Emissions") ? 0 : (costVars.staffCostPerHour * (v.visitLength / 60.0d))); // currentCost - cost1 - cost0 - route.visits.size()*2;
+				return -((cost0 + cost1) - currentCost + (minimiseFactor.equals("Emissions") ? 0 : (costVars.staffCostPerHour * (v.visitLength / 60.0d)))); // currentCost - cost1 - cost0 - route.visits.size()*2;
 				
 			}else{
-				double cost0 = getJourneyCost(position == 0 ? depot.location : route.visits.get(position-1).location, v.location, minimiseFactor, v.transport);
+				double cost0 = getJourneyCost(position-1 < 0 ? depot.location : route.visits.get(position-1).location, v.location, minimiseFactor, v.transport);
 				double cost1 = getJourneyCost(v.location, route.visits.get(position).location, minimiseFactor, v.transport);
 				double currentCost = getJourneyCost(position-1 < 0 ? depot.location : route.visits.get(position-1).location, route.visits.get(position).location, minimiseFactor, v.transport);
-
 				
-				return currentCost - (cost0 + cost1) + (minimiseFactor.equals("Emissions") ? 0 : (costVars.staffCostPerHour * (v.visitLength / 60.0d))); // currentCost - cost1 - cost0 - route.visits.size()*2;
+				return -((cost0 + cost1) - currentCost + (minimiseFactor.equals("Emissions") ? 0 : (costVars.staffCostPerHour * (v.visitLength / 60.0d)))); // currentCost - cost1 - cost0 - route.visits.size()*2;
 			}
 		}		
 		
