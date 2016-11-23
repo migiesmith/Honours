@@ -77,10 +77,10 @@ public class MBCPlayerBidderGui extends JFrame {
 	// The locations that the new visit can be added
 	List<Integer> possibleLocations;
 	private JScrollPane scrollPane_1;
+	List<VisitData> allVisits;
 
 	// Scale the route relative to all seen visits
-	double maxX = 0;
-	double maxY = 0;
+	double renderScale = 1.0d;
 	private JPanel timingPanel;
 	
 	
@@ -90,6 +90,27 @@ public class MBCPlayerBidderGui extends JFrame {
 	
 	public void setGameState(String message){
 		lblGameState.setText(message);
+	}
+	
+	protected void calcRenderScale(){
+		double maxX = 0.0d;
+		double maxY = 0.0d;
+		Depot depot = player.getDepot();
+		
+		Iterator<VisitData> it = allVisits.iterator();
+
+		while(it.hasNext()){
+			VisitData v = it.next();
+			if(Math.abs(v.x - depot.x) > maxX)
+				maxX = Math.abs(v.x - depot.x);
+			if(Math.abs(v.y - depot.y) > maxY)
+				maxY = Math.abs(v.y - depot.y);
+		}
+		this.renderScale = ((double)Math.min(turnPanel.getWidth()/2 * 0.9, turnPanel.getHeight()/2 * 0.9)) / ((double)Math.max(maxX, maxY));
+	}
+	
+	public void setAllVisits(List<VisitData> allVisits){
+		this.allVisits = allVisits;
 	}
 	
 	public void renderTurn(List<VisitData> route, List<Integer> possibleLocations, VisitData newVisit, List<TimingRepresentation> times){
@@ -136,25 +157,28 @@ public class MBCPlayerBidderGui extends JFrame {
 		g2.fillOval(-2,-2,2,2);
 		g2.setColor(Color.black);
 		g2.drawOval(-2,-2,2,2);
-
-		if(route != null){
-			if(newVisit != null)
-				route.add(newVisit);
-			Iterator<VisitData> it = route.iterator();
+		
+		if(allVisits != null){
+			calcRenderScale();
+			// Draw all the visits
+			
+			Iterator<VisitData> it = allVisits.iterator();
 			while(it.hasNext()){
 				VisitData v = it.next();
-				if(Math.abs(v.x - depot.x) > maxX)
-					maxX = Math.abs(v.x - depot.x);
-				if(Math.abs(v.y - depot.y) > maxY)
-					maxY = Math.abs(v.y - depot.y);
+				g2.setColor(new Color(237, 242, 99, 100));
+				g2.fillOval((int)((v.x - depot.x) * renderScale) - nodeSize/2, (int)((v.y - depot.y) * renderScale) - nodeSize/2, nodeSize, nodeSize);
+				g2.setColor(new Color(0, 0, 0, 100));
+				g2.drawOval((int)((v.x - depot.x) * renderScale) - nodeSize/2, (int)((v.y - depot.y) * renderScale) - nodeSize/2, nodeSize, nodeSize);				
 			}
-			if(newVisit != null)
-				route.remove(newVisit);
-			double renderScale = ((double)Math.min(turnPanel.getWidth()/2 * 0.9, turnPanel.getHeight()/2 * 0.9)) / ((double)Math.max(maxX, maxY));
+			
+		}
+		System.out.println(this.renderScale);
 		
+		if(route != null){
+			Iterator<VisitData> it = route.iterator();
+
 			// Check if there is a route to draw
 			if(route.size() > 0){
-				
 				// Draw the current route
 				HasXandY lastNode = depot;
 				it = route.iterator();

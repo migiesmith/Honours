@@ -20,8 +20,10 @@ import agent.auctionSolution.dataObjects.carShare.CarShare;
 import agent.auctionSolution.dataObjects.carShare.CarShareRequest;
 import agent.auctionSolution.dataObjects.carShare.CarShareResult;
 import agent.auctionSolution.ontologies.GiveObjectPredicate;
+import jade.content.ContentElement;
 import jade.content.lang.Codec.CodecException;
 import jade.content.onto.OntologyException;
+import jade.content.onto.UngroundedException;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
@@ -31,7 +33,7 @@ public class MBCPlayerBidder extends Bidder {
 	// The gui for this bidder
 	protected MBCPlayerBidderGui gui;
 	protected MBCBidderBehaviour behaviour;
-	
+	protected List<VisitData> allVisits;
 	
 	@Override
 	protected void setup(){
@@ -67,10 +69,32 @@ public class MBCPlayerBidder extends Bidder {
 		@Override
 		protected boolean initialise() {
 			setJourneyInfoHelper(new JourneyInfoHelper());
+			receiveAllVisits();
 			return true;
 		}
 		
+		protected void receiveAllVisits(){
+			ACLMessage allVisitsMsg = myAgent.receive(MessageTemplate.MatchConversationId("all-visits"));
+			if(allVisitsMsg != null){
+				try {
+					ContentElement d = myAgent.getContentManager().extractContent(allVisitsMsg);
+					if (d instanceof GiveObjectPredicate) {
+						allVisits = (List<VisitData>) ((GiveObjectPredicate) d).getData();
+					}
+					getXYCoords(allVisits);
+					gui.setAllVisits(allVisits);
+				} catch (UngroundedException e) {
+					e.printStackTrace();
+				} catch (CodecException e) {
+					e.printStackTrace();
+				} catch (OntologyException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		
 		protected void startTurn(VisitData v){
+			receiveAllVisits();
 			List<Integer> possibleLocations = new ArrayList<Integer>();
 			for(int i = 0; i <= route.visits.size(); i++){
 				if(canAddAt(v, i)){
@@ -122,20 +146,18 @@ public class MBCPlayerBidder extends Bidder {
 			gui.renderTurn(route.visits, possibleLocations, v, times);
 			gui.setGameState("Bidding for " + v.name);
 			moveMade = false;
-			
 		}
 
 		private void getXYCoords(List<VisitData> visits){
 			// For every visit, ask the DataStore for their x and y location
 			Point2D.Double visitCoords;
-			Iterator<VisitData> it = visits.iterator();
 			for(VisitData vd : visits){
 				// Send message for coordinates
 				if(vd.x == 0 || vd.y == 0){
 					visitCoords = requestCoordinates(vd.location);
 					vd.setX(visitCoords.x);
 					vd.setY(visitCoords.y);
-					if(vd.transport.equals("Car Share")){
+					if(vd.transport != null && vd.transport.equals("Car Share")){
 						for(VisitData v : ((CarShare)vd).visits){
 							visitCoords = requestCoordinates(v.location);
 							v.setX(visitCoords.x);
@@ -144,9 +166,11 @@ public class MBCPlayerBidder extends Bidder {
 					}
 				}
 			}
-			visitCoords = requestCoordinates(depot.location);
-			depot.setX(visitCoords.x);
-			depot.setY(visitCoords.y);
+			if(depot != null){
+				visitCoords = requestCoordinates(depot.location);
+				depot.setX(visitCoords.x);
+				depot.setY(visitCoords.y);
+			}
 		}
 		
 		// Returns the x and y coordinates of a visit

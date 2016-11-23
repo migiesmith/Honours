@@ -18,7 +18,13 @@ import agent.auctionSolution.dataObjects.Depot;
 import agent.auctionSolution.dataObjects.Problem;
 import agent.auctionSolution.dataObjects.Route;
 import agent.auctionSolution.dataObjects.VisitData;
+import agent.auctionSolution.ontologies.GiveObjectPredicate;
+import agent.auctionSolution.ontologies.GiveOntology;
+import jade.content.lang.Codec.CodecException;
+import jade.content.lang.sl.SLCodec;
+import jade.content.onto.OntologyException;
 import jade.core.AID;
+import jade.lang.acl.ACLMessage;
 
 public class MBCAuctioneer extends Auctioneer{
 
@@ -90,7 +96,7 @@ public class MBCAuctioneer extends Auctioneer{
 			start();
 		}
 	}
-
+	
 	// TODO Update this as it is a copy of the original in 'MyAuctioneer'
 	private class Auction extends AuctionBehaviour{
 
@@ -98,11 +104,40 @@ public class MBCAuctioneer extends Auctioneer{
 			super(visits, bidders, depot);
 			
 		}
-
+				
 		@Override
 		protected boolean initialise() {
 			gui.canLoadFile(false);
+			sendAllVisits();
 			return true;
+		}
+
+		@Override
+		protected AID getHighestBidder(){
+			sendAllVisits();
+			return super.getHighestBidder();
+		}
+		
+		protected void sendAllVisits(){
+			ACLMessage initialVisitsMsg = new ACLMessage(ACLMessage.INFORM);
+			// Add all of the receivers
+			for(AID bidder : bidders){
+				initialVisitsMsg.addReceiver(bidder);
+			}
+			initialVisitsMsg.setConversationId("all-visits");
+			
+			initialVisitsMsg.setLanguage(new SLCodec().getName());
+			initialVisitsMsg.setOntology(GiveOntology.getInstance().getName());
+			try{
+				GiveObjectPredicate give = new GiveObjectPredicate();
+				give.setData(getVisits());
+				myAgent.getContentManager().fillContent(initialVisitsMsg, give);
+				myAgent.send(initialVisitsMsg);
+			}catch(CodecException e){
+				e.printStackTrace();
+			}catch(OntologyException e){
+				e.printStackTrace();
+			}
 		}
 		
 		@Override
