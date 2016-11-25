@@ -14,6 +14,7 @@ import com.migie.smith.gui.MBCPlayerBidderGui;
 import agent.auctionSolution.Bidder;
 import agent.auctionSolution.JourneyInfoHelper;
 import agent.auctionSolution.bidder.BidderBehaviour;
+import agent.auctionSolution.dataObjects.CostVariables;
 import agent.auctionSolution.dataObjects.Depot;
 import agent.auctionSolution.dataObjects.VisitData;
 import agent.auctionSolution.dataObjects.carShare.CarShare;
@@ -33,7 +34,11 @@ public class MBCPlayerBidder extends Bidder {
 	// The gui for this bidder
 	protected MBCPlayerBidderGui gui;
 	protected MBCBidderBehaviour behaviour;
-	protected List<VisitData> allVisits;
+	protected List<VisitData> allVisits = null;
+	protected List<VisitData> availableVisits = null;
+
+	// The reward expected for winning the bid
+	protected double rewardForSuccessfulBid = 0.0d;
 	
 	@Override
 	protected void setup(){
@@ -56,7 +61,7 @@ public class MBCPlayerBidder extends Bidder {
 	}
 	
 	public double getReward(VisitData v, int position){
-		return 0.0;
+		return rewardForSuccessfulBid;
 	}
 	
 	
@@ -69,20 +74,44 @@ public class MBCPlayerBidder extends Bidder {
 		@Override
 		protected boolean initialise() {
 			setJourneyInfoHelper(new JourneyInfoHelper());
-			receiveAllVisits();
+			receiveAvailableVisits();
 			return true;
 		}
 		
-		protected void receiveAllVisits(){
-			ACLMessage allVisitsMsg = myAgent.receive(MessageTemplate.MatchConversationId("all-visits"));
+		protected void receiveAvailableVisits(){
+			ACLMessage allVisitsMsg = myAgent.receive(MessageTemplate.MatchConversationId("available-visits"));
 			if(allVisitsMsg != null){
 				try {
 					ContentElement d = myAgent.getContentManager().extractContent(allVisitsMsg);
 					if (d instanceof GiveObjectPredicate) {
-						allVisits = (List<VisitData>) ((GiveObjectPredicate) d).getData();
+						if(allVisits == null){
+							allVisits = (List<VisitData>) ((GiveObjectPredicate) d).getData();
+							getXYCoords(allVisits);
+							gui.setAllVisits(allVisits);
+						}else{
+							availableVisits = (List<VisitData>) ((GiveObjectPredicate) d).getData();
+							getXYCoords(availableVisits);
+							gui.setAvailableVisits(availableVisits);
+						}
 					}
-					getXYCoords(allVisits);
-					gui.setAllVisits(allVisits);
+				} catch (UngroundedException e) {
+					e.printStackTrace();
+				} catch (CodecException e) {
+					e.printStackTrace();
+				} catch (OntologyException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		
+		protected void getVisitReward(){
+			ACLMessage allVisitsMsg = myAgent.blockingReceive(MessageTemplate.MatchConversationId("visit-reward"));
+			if(allVisitsMsg != null){
+				try {
+					ContentElement d = myAgent.getContentManager().extractContent(allVisitsMsg);
+					if (d instanceof GiveObjectPredicate) {
+						rewardForSuccessfulBid = (Double) ((GiveObjectPredicate) d).getData();
+					}
 				} catch (UngroundedException e) {
 					e.printStackTrace();
 				} catch (CodecException e) {
@@ -94,7 +123,8 @@ public class MBCPlayerBidder extends Bidder {
 		}
 		
 		protected void startTurn(VisitData v){
-			receiveAllVisits();
+			getVisitReward();
+			receiveAvailableVisits();
 			List<Integer> possibleLocations = new ArrayList<Integer>();
 			for(int i = 0; i <= route.visits.size(); i++){
 				if(canAddAt(v, i)){
@@ -142,7 +172,6 @@ public class MBCPlayerBidder extends Bidder {
 				}
 			}
 			
-			
 			gui.renderTurn(route.visits, possibleLocations, v, times);
 			gui.setGameState("Bidding for " + v.name);
 			moveMade = false;
@@ -189,7 +218,7 @@ public class MBCPlayerBidder extends Bidder {
 		}
 		
 		@Override
-		public double getBid(VisitData v) {
+		public double getBid(VisitData v) {			
 			startTurn(v);
 			
 			// Wait for the player to make a move
@@ -273,21 +302,21 @@ public class MBCPlayerBidder extends Bidder {
 		@Override
 		public double costForAddingAt(VisitData v, int position){
 			if(route.visits.size() == 0){
-				return getJourneyCost(depot.location, v.location, minimiseFactor, v.transport) + getJourneyCost(v.location, depot.location, minimiseFactor, v.transport) + (minimiseFactor.equals("Emissions") ? 0 : (costVars.staffCostPerHour * (v.visitLength / 60.0d)));
+				return getJourneyCost(depot.location, v.location, minimiseFactor, v.transport) + getJourneyCost(v.location, depot.location, minimiseFactor, v.transport);
 				
 			}else if(position == route.visits.size()){
 				double cost0 = getJourneyCost(route.visits.get(position-1).location, v.location, minimiseFactor, v.transport);
 				double cost1 = getJourneyCost(v.location, depot.location, minimiseFactor, v.transport);
 				double currentCost = getJourneyCost(route.visits.get(position-1).location, depot.location, minimiseFactor, v.transport);
 				
-				return -((cost0 + cost1) - currentCost + (minimiseFactor.equals("Emissions") ? 0 : (costVars.staffCostPerHour * (v.visitLength / 60.0d)))); // currentCost - cost1 - cost0 - route.visits.size()*2;
+				return -((cost0 + cost1) - currentCost);
 				
 			}else{
 				double cost0 = getJourneyCost(position-1 < 0 ? depot.location : route.visits.get(position-1).location, v.location, minimiseFactor, v.transport);
 				double cost1 = getJourneyCost(v.location, route.visits.get(position).location, minimiseFactor, v.transport);
 				double currentCost = getJourneyCost(position-1 < 0 ? depot.location : route.visits.get(position-1).location, route.visits.get(position).location, minimiseFactor, v.transport);
 				
-				return -((cost0 + cost1) - currentCost + (minimiseFactor.equals("Emissions") ? 0 : (costVars.staffCostPerHour * (v.visitLength / 60.0d)))); // currentCost - cost1 - cost0 - route.visits.size()*2;
+				return -((cost0 + cost1) - currentCost);
 			}
 		}		
 		

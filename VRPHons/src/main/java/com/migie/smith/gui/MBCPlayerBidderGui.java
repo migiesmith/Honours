@@ -78,6 +78,7 @@ public class MBCPlayerBidderGui extends JFrame {
 	List<Integer> possibleLocations;
 	private JScrollPane scrollPane_1;
 	List<VisitData> allVisits;
+	List<VisitData> availableVisits;
 
 	// Scale the route relative to all seen visits
 	double renderScale = 1.0d;
@@ -112,6 +113,9 @@ public class MBCPlayerBidderGui extends JFrame {
 	public void setAllVisits(List<VisitData> allVisits){
 		this.allVisits = allVisits;
 	}
+	public void setAvailableVisits(List<VisitData> availableVisits){
+		this.availableVisits = availableVisits;
+	}
 	
 	public void renderTurn(List<VisitData> route, List<Integer> possibleLocations, VisitData newVisit, List<TimingRepresentation> times){
 		this.route = route;
@@ -127,6 +131,14 @@ public class MBCPlayerBidderGui extends JFrame {
 		repaint();
 	}
 
+	protected boolean visitInList(List<VisitData> visitList, VisitData visit){
+		for(VisitData v : visitList){
+			if(v.name.equals(visit.name))
+				return true;
+		}
+		return false;
+	}
+	
 	public void paint(Graphics g) {
 		super.paint(g);
 
@@ -157,22 +169,24 @@ public class MBCPlayerBidderGui extends JFrame {
 		g2.fillOval(-2,-2,2,2);
 		g2.setColor(Color.black);
 		g2.drawOval(-2,-2,2,2);
-		
+
+		// Draw all the visits
 		if(allVisits != null){
-			calcRenderScale();
-			// Draw all the visits
-			
+			calcRenderScale();			
 			Iterator<VisitData> it = allVisits.iterator();
 			while(it.hasNext()){
 				VisitData v = it.next();
-				g2.setColor(new Color(237, 242, 99, 100));
+				if(availableVisits == null || visitInList(availableVisits, v)){
+					g2.setColor(new Color(237, 242, 99, 100));
+				}else{
+					g2.setColor(new Color(100, 100, 100, 50));
+				}
 				g2.fillOval((int)((v.x - depot.x) * renderScale) - nodeSize/2, (int)((v.y - depot.y) * renderScale) - nodeSize/2, nodeSize, nodeSize);
 				g2.setColor(new Color(0, 0, 0, 100));
 				g2.drawOval((int)((v.x - depot.x) * renderScale) - nodeSize/2, (int)((v.y - depot.y) * renderScale) - nodeSize/2, nodeSize, nodeSize);				
 			}
 			
 		}
-		System.out.println(this.renderScale);
 		
 		if(route != null){
 			Iterator<VisitData> it = route.iterator();

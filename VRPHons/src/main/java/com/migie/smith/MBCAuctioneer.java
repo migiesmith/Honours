@@ -12,9 +12,12 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
 import agent.auctionSolution.Bidder;
+import agent.auctionSolution.JourneyInfoHelper;
 import agent.auctionSolution.auction.AuctionBehaviour;
 import agent.auctionSolution.auction.Auctioneer;
+import agent.auctionSolution.dataObjects.CostVariables;
 import agent.auctionSolution.dataObjects.Depot;
+import agent.auctionSolution.dataObjects.JourneyData;
 import agent.auctionSolution.dataObjects.Problem;
 import agent.auctionSolution.dataObjects.Route;
 import agent.auctionSolution.dataObjects.VisitData;
@@ -118,13 +121,75 @@ public class MBCAuctioneer extends Auctioneer{
 			return super.getHighestBidder();
 		}
 		
+		@Override
+		protected boolean auctionVisit(){
+			// Call the super function, we only want to add to it
+			boolean canAuctionVisit = super.auctionVisit();
+			
+			// If we can auction a visit, send the reward associated with the visit
+			if(canAuctionVisit){
+				// Create an inform message
+				ACLMessage rewardMsg = new ACLMessage(ACLMessage.INFORM);
+				// Set the conversation id
+				rewardMsg.setConversationId("visit-reward");
+				// Add all of the receivers
+				for(AID bidder : bidders){
+					rewardMsg.addReceiver(bidder);
+				}
+				// Add the reward value to the message and send it
+				rewardMsg.setLanguage(new SLCodec().getName());
+				rewardMsg.setOntology(GiveOntology.getInstance().getName());
+				try {
+					GiveObjectPredicate give = new GiveObjectPredicate();
+					give.setData(getReward(getUpForAuction())); // TODO Currently Crude Reward System
+					myAgent.getContentManager().fillContent(rewardMsg, give);
+					myAgent.send(rewardMsg);					
+				} catch (CodecException e) {
+					e.printStackTrace();
+				} catch (OntologyException e) {
+					e.printStackTrace();
+				}
+			}
+			
+			return canAuctionVisit;
+		}
+		
+		protected double getReward(VisitData v){
+			JourneyInfoHelper jHelper = new JourneyInfoHelper();
+			JourneyData journeyData = jHelper.getJourneyData(myAgent, problem.depot.location, v.location);
+			CostVariables costVars = jHelper.getCostVariables(myAgent);
+			double reward = 0.0d;
+			if (journeyData != null) {
+				if(transportMode.equals("Car")){
+					if(minimiseFactor.equals("Emissions")){
+						reward = journeyData.carEm;
+					}else if(minimiseFactor.equals("Cost")){
+						reward = ((journeyData.carDist * costVars.carCostsPerKM) + ((journeyData.carTime/60.0d) * costVars.staffCostPerHour));
+					}
+				}else if(transportMode.equals("Public Transport")){
+					if(minimiseFactor.equals("Emissions")){
+						reward = journeyData.ptEm;
+					}else if(minimiseFactor.equals("Cost")){
+						reward = (journeyData.ptTime/60.0d) * costVars.staffCostPerHour;
+					}
+				}else if(transportMode.equals("Car Share")){
+					if(minimiseFactor.equals("Emissions")){
+						reward = 0;
+					}else if(minimiseFactor.equals("Cost")){
+						reward = ((journeyData.carTime/60.0d) * costVars.staffCostPerHour);
+					}
+				}
+			}
+			return reward*2;
+		}
+		
 		protected void sendAllVisits(){
 			ACLMessage initialVisitsMsg = new ACLMessage(ACLMessage.INFORM);
 			// Add all of the receivers
 			for(AID bidder : bidders){
 				initialVisitsMsg.addReceiver(bidder);
 			}
-			initialVisitsMsg.setConversationId("all-visits");
+			initialVisitsMsg.setConversationId("available-visits");
 			
 			initialVisitsMsg.setLanguage(new SLCodec().getName());
 			initialVisitsMsg.setOntology(GiveOntology.getInstance().getName());
