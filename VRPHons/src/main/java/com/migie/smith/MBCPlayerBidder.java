@@ -37,6 +37,9 @@ public class MBCPlayerBidder extends Bidder {
 	protected List<VisitData> allVisits = null;
 	protected List<VisitData> availableVisits = null;
 
+	// The Accountant for this Bidder Agent
+	protected MBCAccountant accountant = new MBCAccountant();
+	
 	// The reward expected for winning the bid
 	protected double rewardForSuccessfulBid = 0.0d;
 	
@@ -125,6 +128,8 @@ public class MBCPlayerBidder extends Bidder {
 		protected void startTurn(VisitData v){
 			getVisitReward();
 			receiveAvailableVisits();
+			gui.setBalance(accountant.getBalance());
+			
 			List<Integer> possibleLocations = new ArrayList<Integer>();
 			for(int i = 0; i <= route.visits.size(); i++){
 				if(canAddAt(v, i)){
@@ -372,11 +377,15 @@ public class MBCPlayerBidder extends Bidder {
 				carShare = null;
 				route.visits.add(addAt, result.carShare);
 				v.transport = "Public Transport";
+				// Update the accountant
+				accountant.updateBalance(rewardForSuccessfulBid - costForAddingAt(v, addAt));
 				route.visits.add(addAt + 1, v);
 				System.out.println("CARSHARE");
 			}else{
 				// Determine the transport mode and add the visit
 				v.transport = determineTransportMode(v, addAt);
+				// Update the accountant
+				accountant.updateBalance(rewardForSuccessfulBid - costForAddingAt(v, addAt));
 				route.visits.add(addAt, v);
 			}			
 		}

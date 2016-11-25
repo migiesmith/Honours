@@ -180,7 +180,8 @@ public class MBCAuctioneer extends Auctioneer{
 					}
 				}
 			}
-			return reward*2;
+			
+			return reward;
 		}
 		
 		protected void sendAllVisits(){

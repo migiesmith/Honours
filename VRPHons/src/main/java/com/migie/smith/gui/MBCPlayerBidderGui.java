@@ -59,6 +59,8 @@ public class MBCPlayerBidderGui extends JFrame {
 	// The spinner for selecting where to insert a visit
 	private JList<Integer> lsInsertLocation;
 	
+	// The label for displaying the bidder's balance
+	JLabel lblBalance;
 	// Cost and Reward for adding at the selected location
 	private JLabel lblCost;
 	private JLabel lblReward;
@@ -91,6 +93,10 @@ public class MBCPlayerBidderGui extends JFrame {
 	
 	public void setGameState(String message){
 		lblGameState.setText(message);
+	}
+	
+	public void setBalance(double balance){
+		lblBalance.setText("Balance: " + String.valueOf(balance));
 	}
 	
 	protected void calcRenderScale(){
@@ -375,41 +381,47 @@ public class MBCPlayerBidderGui extends JFrame {
 		
 		timingPanel = new JPanel();
 		
+		lblBalance = new JLabel("Balance:");
+		
 		GroupLayout gl_contentPane = new GroupLayout(contentPane);
 		gl_contentPane.setHorizontalGroup(
 			gl_contentPane.createParallelGroup(Alignment.LEADING)
 				.addGroup(gl_contentPane.createSequentialGroup()
 					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
+						.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
+							.addGroup(gl_contentPane.createSequentialGroup()
+								.addGap(30)
+								.addComponent(lblGameState, GroupLayout.DEFAULT_SIZE, 281, Short.MAX_VALUE)
+								.addGap(37))
+							.addGroup(gl_contentPane.createSequentialGroup()
+								.addContainerGap()
+								.addComponent(turnPanel, GroupLayout.DEFAULT_SIZE, 332, Short.MAX_VALUE)
+								.addPreferredGap(ComponentPlacement.RELATED)))
 						.addGroup(gl_contentPane.createSequentialGroup()
 							.addGap(101)
-							.addComponent(lblNewLabel))
-						.addGroup(gl_contentPane.createSequentialGroup()
-							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-								.addGroup(gl_contentPane.createSequentialGroup()
-									.addGap(30)
-									.addComponent(lblGameState, GroupLayout.DEFAULT_SIZE, 281, Short.MAX_VALUE)
-									.addGap(37))
-								.addGroup(gl_contentPane.createSequentialGroup()
-									.addContainerGap()
-									.addComponent(turnPanel, GroupLayout.DEFAULT_SIZE, 332, Short.MAX_VALUE)
-									.addPreferredGap(ComponentPlacement.RELATED)))
-							.addGroup(gl_contentPane.createParallelGroup(Alignment.TRAILING)
-								.addComponent(scrollPane, GroupLayout.DEFAULT_SIZE, 266, Short.MAX_VALUE)
-								.addComponent(btnBid, GroupLayout.DEFAULT_SIZE, 266, Short.MAX_VALUE)
-								.addComponent(btnReject, GroupLayout.DEFAULT_SIZE, 266, Short.MAX_VALUE)
-								.addGroup(gl_contentPane.createSequentialGroup()
-									.addGroup(gl_contentPane.createParallelGroup(Alignment.TRAILING)
-										.addComponent(timingPanel, GroupLayout.DEFAULT_SIZE, 181, Short.MAX_VALUE)
-										.addComponent(lblReward, GroupLayout.DEFAULT_SIZE, 181, Short.MAX_VALUE)
-										.addComponent(lblCost, GroupLayout.DEFAULT_SIZE, 181, Short.MAX_VALUE))
-									.addPreferredGap(ComponentPlacement.UNRELATED)
-									.addComponent(scrollPane_1, GroupLayout.PREFERRED_SIZE, 75, GroupLayout.PREFERRED_SIZE)))))
+							.addComponent(lblNewLabel)
+							.addGap(184)))
+					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
+						.addComponent(lblBalance)
+						.addGroup(Alignment.TRAILING, gl_contentPane.createParallelGroup(Alignment.TRAILING)
+							.addComponent(scrollPane, GroupLayout.DEFAULT_SIZE, 266, Short.MAX_VALUE)
+							.addComponent(btnBid, GroupLayout.DEFAULT_SIZE, 266, Short.MAX_VALUE)
+							.addComponent(btnReject, GroupLayout.DEFAULT_SIZE, 266, Short.MAX_VALUE)
+							.addGroup(gl_contentPane.createSequentialGroup()
+								.addGroup(gl_contentPane.createParallelGroup(Alignment.TRAILING)
+									.addComponent(timingPanel, GroupLayout.DEFAULT_SIZE, 181, Short.MAX_VALUE)
+									.addComponent(lblReward, GroupLayout.DEFAULT_SIZE, 181, Short.MAX_VALUE)
+									.addComponent(lblCost, GroupLayout.DEFAULT_SIZE, 181, Short.MAX_VALUE))
+								.addPreferredGap(ComponentPlacement.UNRELATED)
+								.addComponent(scrollPane_1, GroupLayout.PREFERRED_SIZE, 75, GroupLayout.PREFERRED_SIZE))))
 					.addContainerGap())
 		);
 		gl_contentPane.setVerticalGroup(
 			gl_contentPane.createParallelGroup(Alignment.TRAILING)
 				.addGroup(gl_contentPane.createSequentialGroup()
-					.addComponent(lblNewLabel)
+					.addGroup(gl_contentPane.createParallelGroup(Alignment.BASELINE)
+						.addComponent(lblNewLabel)
+						.addComponent(lblBalance))
 					.addGap(5)
 					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
 						.addGroup(gl_contentPane.createSequentialGroup()
