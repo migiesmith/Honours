@@ -1,6 +1,16 @@
 package com.migie.smith.gui;
 
-import java.util.Calendar;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.geom.Line2D;
+import java.awt.image.BufferedImage;
 import java.util.Iterator;
 import java.util.List;
 
@@ -10,11 +20,18 @@ import javax.swing.GroupLayout.Alignment;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
 import javax.swing.JTextPane;
+import javax.swing.LayoutStyle.ComponentPlacement;
+import javax.swing.ListSelectionModel;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableModel;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 
 import com.migie.smith.MBCBidderMove;
 import com.migie.smith.MBCPlayerBidder;
@@ -23,32 +40,7 @@ import com.migie.smith.TimingRepresentation.TimeType;
 
 import agent.auctionSolution.dataObjects.Depot;
 import agent.auctionSolution.dataObjects.HasXandY;
-import agent.auctionSolution.dataObjects.ReturnToCar;
 import agent.auctionSolution.dataObjects.VisitData;
-import agent.auctionSolution.dataObjects.carShare.CarShare;
-
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.geom.Line2D;
-import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
-
-import javax.swing.LayoutStyle.ComponentPlacement;
-import javax.swing.ListSelectionModel;
-import javax.swing.SpinnerNumberModel;
-
-import java.awt.event.ActionListener;
-import java.awt.event.ActionEvent;
-import javax.swing.JSpinner;
-import javax.swing.JList;
-import javax.swing.event.ListSelectionListener;
-import javax.swing.event.ListSelectionEvent;
 
 public class MBCPlayerBidderGui extends JFrame {
 
@@ -62,8 +54,8 @@ public class MBCPlayerBidderGui extends JFrame {
 	// The label for displaying the bidder's balance
 	JLabel lblBalance;
 	// Cost and Reward for adding at the selected location
-	private JLabel lblCost;
-	private JLabel lblReward;
+	private JLabel lblSuggestedBid;
+	private JLabel lblMaxBid;
 	
 	
 	// The panel used to render the turns
@@ -85,6 +77,10 @@ public class MBCPlayerBidderGui extends JFrame {
 	// Scale the route relative to all seen visits
 	double renderScale = 1.0d;
 	private JPanel timingPanel;
+	private JSpinner currentBidSpinner;
+	private JLabel lblTimeFrame;
+	private JLabel lblLog;
+	private JLabel lblInsertPos;
 	
 	
 	public void showMessage(String message){
@@ -128,12 +124,30 @@ public class MBCPlayerBidderGui extends JFrame {
 		this.possibleLocations = possibleLocations;
 		this.newVisit = newVisit;
 		this.times = times;
+
+		// Add all possible locations to the route index list
 		DefaultListModel<Integer> listModel = new DefaultListModel<Integer>();
 		for(int i = 0; i < possibleLocations.size(); i++){
 			listModel.add(i, possibleLocations.get(i));
 		}
+		// Update the selected position on the route index list
 		lsInsertLocation.setModel(listModel);
 		lsInsertLocation.setSelectedIndex(0);
+
+		// Update the current bid
+		double maxBid = player.getMaxBid(newVisit);
+		double suggestedBid = Math.abs(player.getCost(newVisit, (Integer)lsInsertLocation.getSelectedValue()));
+		currentBidSpinner.setModel(new SpinnerNumberModel((suggestedBid < maxBid ? suggestedBid : maxBid), 0.0, maxBid, 0.1));
+		
+		// We can make a move, enable the buttons
+		Component[] components = getContentPane().getComponents();
+		for(Component c : components){
+			if(c.getClass() == JButton.class){
+				c.setEnabled(true);
+			}
+		}
+		
+		// Redraw the GUI
 		repaint();
 	}
 
@@ -236,45 +250,48 @@ public class MBCPlayerBidderGui extends JFrame {
 	
 			}
 			
-			// Draw the new node
-			g2.setColor(Color.green);
-			g2.fillOval((int) ((newVisit.x - depot.x) * renderScale) - nodeSize / 2,
-					(int) ((newVisit.y - depot.y) * renderScale) - nodeSize / 2, nodeSize, nodeSize);
-			g2.setColor(Color.black);
-			g2.drawOval((int) ((newVisit.x - depot.x) * renderScale) - nodeSize / 2,
-					(int) ((newVisit.y - depot.y) * renderScale) - nodeSize / 2, nodeSize, nodeSize);
-	
-			// Draw possible connections to the new node
-			possibleLocations.add((Integer)lsInsertLocation.getSelectedValue());
-			Iterator<Integer> pit = possibleLocations.iterator();
-			while (pit.hasNext()) {
-				int loc = pit.next();
-				if(loc == (Integer)lsInsertLocation.getSelectedValue()){
-					g2.setColor(Color.green);
-				}else{
-					g2.setColor(new Color(0,0,0,50));
-					
+			// Check if we can take part in this turn
+			if(newVisit != null){
+				// Draw the new node
+				g2.setColor(Color.green);
+				g2.fillOval((int) ((newVisit.x - depot.x) * renderScale) - nodeSize / 2,
+						(int) ((newVisit.y - depot.y) * renderScale) - nodeSize / 2, nodeSize, nodeSize);
+				g2.setColor(Color.black);
+				g2.drawOval((int) ((newVisit.x - depot.x) * renderScale) - nodeSize / 2,
+						(int) ((newVisit.y - depot.y) * renderScale) - nodeSize / 2, nodeSize, nodeSize);
+		
+				// Draw possible connections to the new node
+				possibleLocations.add((Integer)lsInsertLocation.getSelectedValue());
+				Iterator<Integer> pit = possibleLocations.iterator();
+				while (pit.hasNext()) {
+					int loc = pit.next();
+					if(loc == (Integer)lsInsertLocation.getSelectedValue()){
+						g2.setColor(Color.green);
+					}else{
+						g2.setColor(new Color(0,0,0,50));
+						
+					}
+					if (loc == 0) { // From Depot
+						g2.drawLine(0, 0, (int) ((newVisit.getX() - depot.x) * renderScale),
+								(int) ((newVisit.getY() - depot.y) * renderScale));
+					} else { // From Visit
+						g2.drawLine((int) ((route.get(loc - 1).getX() - depot.x) * renderScale),
+								(int) ((route.get(loc - 1).getY() - depot.y) * renderScale),
+								(int) ((newVisit.getX() - depot.x) * renderScale),
+								(int) ((newVisit.getY() - depot.y) * renderScale));
+					}
+					if (loc == route.size()) { // To Depot
+						g2.drawLine((int) ((newVisit.getX() - depot.x) * renderScale),
+								(int) ((newVisit.getY() - depot.y) * renderScale), 0, 0);
+					} else { // To Visit
+						g2.drawLine((int) ((newVisit.getX() - depot.x) * renderScale),
+								(int) ((newVisit.getY() - depot.y) * renderScale),
+								(int) ((route.get(loc).getX() - depot.x) * renderScale),
+								(int) ((route.get(loc).getY() - depot.y) * renderScale));
+					}
 				}
-				if (loc == 0) { // From Depot
-					g2.drawLine(0, 0, (int) ((newVisit.getX() - depot.x) * renderScale),
-							(int) ((newVisit.getY() - depot.y) * renderScale));
-				} else { // From Visit
-					g2.drawLine((int) ((route.get(loc - 1).getX() - depot.x) * renderScale),
-							(int) ((route.get(loc - 1).getY() - depot.y) * renderScale),
-							(int) ((newVisit.getX() - depot.x) * renderScale),
-							(int) ((newVisit.getY() - depot.y) * renderScale));
-				}
-				if (loc == route.size()) { // To Depot
-					g2.drawLine((int) ((newVisit.getX() - depot.x) * renderScale),
-							(int) ((newVisit.getY() - depot.y) * renderScale), 0, 0);
-				} else { // To Visit
-					g2.drawLine((int) ((newVisit.getX() - depot.x) * renderScale),
-							(int) ((newVisit.getY() - depot.y) * renderScale),
-							(int) ((route.get(loc).getX() - depot.x) * renderScale),
-							(int) ((route.get(loc).getY() - depot.y) * renderScale));
-				}
+				possibleLocations.remove(possibleLocations.size()-1);
 			}
-			possibleLocations.remove(possibleLocations.size()-1);
 		}
 		
 		// Draw to the screen
@@ -283,23 +300,36 @@ public class MBCPlayerBidderGui extends JFrame {
 		gPanel.setColor(Color.GRAY);
 		gPanel.drawRect(2, 2, turnPanel.getWidth() - 5, turnPanel.getHeight() - 5);
 		gPanel.drawRect(0, 0, turnPanel.getWidth() - 1, turnPanel.getHeight() - 1);
-		gPanel.setColor(Color.BLACK);
 
+		if(newVisit == null){
+			gPanel.setColor(new Color(100, 100, 100, 100));
+			gPanel.fillRect(0, 0, turnPanel.getWidth(), turnPanel.getHeight());
+			gPanel.setColor(Color.BLACK);
+			// Get values required to center text
+		    FontMetrics metrics = gPanel.getFontMetrics(gPanel.getFont());
+			gPanel.drawString("Waiting...", turnPanel.getWidth()/2 - metrics.stringWidth("Waiting...")/2, turnPanel.getHeight()/2);
+		}
+		
 
 		// Draw the timing information
 		Graphics gTimingPanel = timingPanel.getGraphics();
 		if(times != null){
+			// Calculate the total time
 			int total = 0;
 			for(TimingRepresentation tr : times){
 				total += tr.timeTaken;
 			}
+			
 			int selectedVal = 0;
 			if(lsInsertLocation.getSelectedValue() != null)
 				selectedVal = lsInsertLocation.getSelectedValue();
 			int visitCount = 0;
+			// If we have something to draw
 			if(total > 0){
-				double ratio = (double)timingPanel.getWidth() / total;
+				double ratio = (double)timingPanel.getWidth() / (double)total;
+				// Store x to add items after each other
 				int x = 0;
+				// Check the type of the timing information and colour code it
 				for(TimingRepresentation tr : times){
 					switch(tr.type){
 					case Empty:
@@ -307,14 +337,16 @@ public class MBCPlayerBidderGui extends JFrame {
 						break;
 					case Visit:
 						gTimingPanel.setColor(Color.green);
-							visitCount++;
+						visitCount++;
 						break;
 					case Travel:
 						gTimingPanel.setColor(Color.orange);
 						break;
 					}
-					gTimingPanel.fillRect(x + (selectedVal == visitCount && tr.type == TimeType.Travel ? 1 : 0), 0, (int)(tr.timeTaken * ratio), timingPanel.getHeight());
+					// Render the piece of timing info
+					gTimingPanel.fillRect(x + (selectedVal == visitCount && tr.type == TimeType.Travel ? 1 : 0), 0, (int)Math.ceil(((double)tr.timeTaken) * ratio), timingPanel.getHeight());
 					
+					// Draw a line indicating where the new visit will be added
 					if(selectedVal == visitCount && tr.type == TimeType.Visit){
 						gTimingPanel.setColor(Color.red);
 		                Graphics2D g2TimingPanel = (Graphics2D) gTimingPanel;
@@ -322,7 +354,8 @@ public class MBCPlayerBidderGui extends JFrame {
 		                g2TimingPanel.draw(new Line2D.Float(x + (int)(tr.timeTaken * ratio), 0, x + (int)(tr.timeTaken * ratio), timingPanel.getHeight()));
 		                g2TimingPanel.setStroke(new BasicStroke(1));
 					}
-					x += tr.timeTaken * ratio;
+					// Increment x for the next visit
+					x += Math.round(((double)tr.timeTaken) * ratio);
 				}
 			}
 		}
@@ -338,31 +371,48 @@ public class MBCPlayerBidderGui extends JFrame {
 		gTimingPanel.drawRect(0, 0, timingPanel.getWidth() - 1, timingPanel.getHeight() - 1);
 	}
 	
+	protected void endTurn(){
+		newVisit = null;
+		currentBidSpinner.setModel(new SpinnerNumberModel(0.0, 0.0, 0.0, 0.1));
+
+		// We cannot make a move, disable the buttons
+		Component[] components = getContentPane().getComponents();
+		for(Component c : components){
+			if(c.getClass() == JButton.class){
+				c.setEnabled(false);
+			}
+		}
+		repaint();
+	}
+	
 	/**
 	 * Create the frame.
 	 */
 	public MBCPlayerBidderGui(final MBCPlayerBidder player) {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, 650, 400);
+		setBounds(100, 100, 700, 500);
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
 		
 		JLabel lblNewLabel = new JLabel("Player Bidder");
+		lblNewLabel.setHorizontalAlignment(SwingConstants.CENTER);
 		
 		turnPanel = new JPanel();
 		
 		JButton btnBid = new JButton("Bid");
 		btnBid.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				player.makeMove(new MBCBidderMove((Integer)lsInsertLocation.getSelectedValue(), true));
+				player.makeMove(new MBCBidderMove((Integer)lsInsertLocation.getSelectedValue(), Double.valueOf(currentBidSpinner.getValue().toString()), true));
+				endTurn();
 			}
 		});
 		
 		JButton btnReject = new JButton("Reject");
 		btnReject.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				player.makeMove(new MBCBidderMove(0, false));
+				player.makeMove(new MBCBidderMove(0, 0.0d, false));
+				endTurn();
 			}
 		});
 		
@@ -375,45 +425,64 @@ public class MBCPlayerBidderGui extends JFrame {
 		
 		scrollPane_1 = new JScrollPane();
 		
-		lblCost = new JLabel("Cost:");
+		lblSuggestedBid = new JLabel("Cost:");
 		
-		lblReward = new JLabel("Reward:");
+		lblMaxBid = new JLabel("Max Bid:");
 		
 		timingPanel = new JPanel();
 		
 		lblBalance = new JLabel("Balance:");
+		
+		currentBidSpinner = new JSpinner();
+		currentBidSpinner.setModel(new SpinnerNumberModel(0.0, 0.0, 0.0, 0.1));
+		
+		JLabel lblBid = new JLabel("Bid:");
+		
+		lblTimeFrame = new JLabel("Time Frame:");
+		
+		lblLog = new JLabel("Log:");
+		
+		lblInsertPos = new JLabel("Insert Position:");
+		lblInsertPos.setHorizontalAlignment(SwingConstants.CENTER);
 		
 		GroupLayout gl_contentPane = new GroupLayout(contentPane);
 		gl_contentPane.setHorizontalGroup(
 			gl_contentPane.createParallelGroup(Alignment.LEADING)
 				.addGroup(gl_contentPane.createSequentialGroup()
 					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-						.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-							.addGroup(gl_contentPane.createSequentialGroup()
-								.addGap(30)
-								.addComponent(lblGameState, GroupLayout.DEFAULT_SIZE, 281, Short.MAX_VALUE)
-								.addGap(37))
-							.addGroup(gl_contentPane.createSequentialGroup()
-								.addContainerGap()
-								.addComponent(turnPanel, GroupLayout.DEFAULT_SIZE, 332, Short.MAX_VALUE)
-								.addPreferredGap(ComponentPlacement.RELATED)))
 						.addGroup(gl_contentPane.createSequentialGroup()
-							.addGap(101)
-							.addComponent(lblNewLabel)
-							.addGap(184)))
-					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-						.addComponent(lblBalance)
-						.addGroup(Alignment.TRAILING, gl_contentPane.createParallelGroup(Alignment.TRAILING)
-							.addComponent(scrollPane, GroupLayout.DEFAULT_SIZE, 266, Short.MAX_VALUE)
-							.addComponent(btnBid, GroupLayout.DEFAULT_SIZE, 266, Short.MAX_VALUE)
-							.addComponent(btnReject, GroupLayout.DEFAULT_SIZE, 266, Short.MAX_VALUE)
-							.addGroup(gl_contentPane.createSequentialGroup()
-								.addGroup(gl_contentPane.createParallelGroup(Alignment.TRAILING)
-									.addComponent(timingPanel, GroupLayout.DEFAULT_SIZE, 181, Short.MAX_VALUE)
-									.addComponent(lblReward, GroupLayout.DEFAULT_SIZE, 181, Short.MAX_VALUE)
-									.addComponent(lblCost, GroupLayout.DEFAULT_SIZE, 181, Short.MAX_VALUE))
-								.addPreferredGap(ComponentPlacement.UNRELATED)
-								.addComponent(scrollPane_1, GroupLayout.PREFERRED_SIZE, 75, GroupLayout.PREFERRED_SIZE))))
+							.addGap(30)
+							.addComponent(lblGameState, GroupLayout.DEFAULT_SIZE, 301, Short.MAX_VALUE)
+							.addGap(37)
+							.addGroup(gl_contentPane.createParallelGroup(Alignment.TRAILING)
+								.addComponent(lblBalance, GroupLayout.DEFAULT_SIZE, 306, Short.MAX_VALUE)
+								.addComponent(btnBid, GroupLayout.DEFAULT_SIZE, 306, Short.MAX_VALUE)
+								.addComponent(btnReject, GroupLayout.DEFAULT_SIZE, 306, Short.MAX_VALUE)
+								.addComponent(lblMaxBid, GroupLayout.DEFAULT_SIZE, 306, Short.MAX_VALUE)
+								.addComponent(lblSuggestedBid, GroupLayout.DEFAULT_SIZE, 306, Short.MAX_VALUE)
+								.addGroup(gl_contentPane.createSequentialGroup()
+									.addPreferredGap(ComponentPlacement.RELATED)
+									.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
+										.addComponent(lblTimeFrame, GroupLayout.DEFAULT_SIZE, 306, Short.MAX_VALUE)
+										.addGroup(gl_contentPane.createSequentialGroup()
+											.addComponent(lblBid)
+											.addPreferredGap(ComponentPlacement.UNRELATED)
+											.addComponent(currentBidSpinner, GroupLayout.PREFERRED_SIZE, 140, GroupLayout.PREFERRED_SIZE))
+										.addComponent(timingPanel, GroupLayout.DEFAULT_SIZE, 306, Short.MAX_VALUE)))
+								.addGroup(gl_contentPane.createSequentialGroup()
+									.addComponent(scrollPane, GroupLayout.DEFAULT_SIZE, 227, Short.MAX_VALUE)
+									.addPreferredGap(ComponentPlacement.RELATED)
+									.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING, false)
+										.addComponent(lblInsertPos, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+										.addComponent(scrollPane_1, GroupLayout.DEFAULT_SIZE, 71, Short.MAX_VALUE)))))
+						.addGroup(gl_contentPane.createSequentialGroup()
+							.addContainerGap()
+							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
+								.addComponent(lblNewLabel)
+								.addComponent(turnPanel, GroupLayout.PREFERRED_SIZE, 340, GroupLayout.PREFERRED_SIZE))
+							.addGap(18)
+							.addComponent(lblLog, GroupLayout.PREFERRED_SIZE, 142, GroupLayout.PREFERRED_SIZE)
+							.addPreferredGap(ComponentPlacement.RELATED, 164, Short.MAX_VALUE)))
 					.addContainerGap())
 		);
 		gl_contentPane.setVerticalGroup(
@@ -423,23 +492,32 @@ public class MBCPlayerBidderGui extends JFrame {
 						.addComponent(lblNewLabel)
 						.addComponent(lblBalance))
 					.addGap(5)
-					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
+					.addGroup(gl_contentPane.createParallelGroup(Alignment.TRAILING)
 						.addGroup(gl_contentPane.createSequentialGroup()
 							.addComponent(btnBid)
 							.addGap(5)
 							.addComponent(btnReject)
 							.addPreferredGap(ComponentPlacement.UNRELATED)
-							.addGroup(gl_contentPane.createParallelGroup(Alignment.BASELINE)
-								.addComponent(scrollPane_1, GroupLayout.DEFAULT_SIZE, 83, Short.MAX_VALUE)
-								.addGroup(gl_contentPane.createSequentialGroup()
-									.addComponent(lblCost)
-									.addPreferredGap(ComponentPlacement.RELATED)
-									.addComponent(lblReward)
-									.addPreferredGap(ComponentPlacement.RELATED, 12, Short.MAX_VALUE)
-									.addComponent(timingPanel, GroupLayout.PREFERRED_SIZE, 37, GroupLayout.PREFERRED_SIZE)))
+							.addComponent(lblSuggestedBid)
+							.addPreferredGap(ComponentPlacement.RELATED)
+							.addComponent(lblMaxBid)
+							.addPreferredGap(ComponentPlacement.RELATED)
+							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
+								.addComponent(lblBid)
+								.addComponent(currentBidSpinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
 							.addPreferredGap(ComponentPlacement.UNRELATED)
-							.addComponent(scrollPane, GroupLayout.DEFAULT_SIZE, 156, Short.MAX_VALUE))
-						.addComponent(turnPanel, Alignment.TRAILING, GroupLayout.DEFAULT_SIZE, 312, Short.MAX_VALUE))
+							.addComponent(lblTimeFrame)
+							.addPreferredGap(ComponentPlacement.RELATED)
+							.addComponent(timingPanel, GroupLayout.PREFERRED_SIZE, 37, GroupLayout.PREFERRED_SIZE)
+							.addPreferredGap(ComponentPlacement.RELATED)
+							.addGroup(gl_contentPane.createParallelGroup(Alignment.TRAILING)
+								.addComponent(lblInsertPos)
+								.addComponent(lblLog))
+							.addPreferredGap(ComponentPlacement.RELATED)
+							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
+								.addComponent(scrollPane, Alignment.TRAILING, GroupLayout.DEFAULT_SIZE, 196, Short.MAX_VALUE)
+								.addComponent(scrollPane_1, GroupLayout.DEFAULT_SIZE, 196, Short.MAX_VALUE)))
+						.addComponent(turnPanel, GroupLayout.DEFAULT_SIZE, 412, Short.MAX_VALUE))
 					.addPreferredGap(ComponentPlacement.RELATED)
 					.addComponent(lblGameState))
 		);
@@ -449,8 +527,10 @@ public class MBCPlayerBidderGui extends JFrame {
 			public void valueChanged(ListSelectionEvent e) {
 				repaint();
 				if(lsInsertLocation.getSelectedValue() != null){
-					lblCost.setText("Cost: " + Math.abs(player.getCost(newVisit, (Integer)lsInsertLocation.getSelectedValue())));
-					lblReward.setText("Reward: " + player.getReward(newVisit, (Integer)lsInsertLocation.getSelectedValue()));
+					double suggestedBid = Math.abs(player.getCost(newVisit, (Integer)lsInsertLocation.getSelectedValue()));
+					lblSuggestedBid.setText("Cost: " + suggestedBid);
+					lblMaxBid.setText("Max Bid: " + player.getMaxBid(newVisit));
+					currentBidSpinner.setValue(suggestedBid);
 				}
 			}
 		});

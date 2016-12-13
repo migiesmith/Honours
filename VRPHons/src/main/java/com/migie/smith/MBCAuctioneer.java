@@ -129,21 +129,21 @@ public class MBCAuctioneer extends Auctioneer{
 			// If we can auction a visit, send the reward associated with the visit
 			if(canAuctionVisit){
 				// Create an inform message
-				ACLMessage rewardMsg = new ACLMessage(ACLMessage.INFORM);
+				ACLMessage maxBidMsg = new ACLMessage(ACLMessage.INFORM);
 				// Set the conversation id
-				rewardMsg.setConversationId("visit-reward");
+				maxBidMsg.setConversationId("visit-max-bid");
 				// Add all of the receivers
 				for(AID bidder : bidders){
-					rewardMsg.addReceiver(bidder);
+					maxBidMsg.addReceiver(bidder);
 				}
 				// Add the reward value to the message and send it
-				rewardMsg.setLanguage(new SLCodec().getName());
-				rewardMsg.setOntology(GiveOntology.getInstance().getName());
+				maxBidMsg.setLanguage(new SLCodec().getName());
+				maxBidMsg.setOntology(GiveOntology.getInstance().getName());
 				try {
 					GiveObjectPredicate give = new GiveObjectPredicate();
-					give.setData(getReward(getUpForAuction())); // TODO Currently Crude Reward System
-					myAgent.getContentManager().fillContent(rewardMsg, give);
-					myAgent.send(rewardMsg);					
+					give.setData(getMaxBid(getUpForAuction()));
+					myAgent.getContentManager().fillContent(maxBidMsg, give);
+					myAgent.send(maxBidMsg);					
 				} catch (CodecException e) {
 					e.printStackTrace();
 				} catch (OntologyException e) {
@@ -154,34 +154,34 @@ public class MBCAuctioneer extends Auctioneer{
 			return canAuctionVisit;
 		}
 		
-		protected double getReward(VisitData v){
+		protected double getMaxBid(VisitData v){
 			JourneyInfoHelper jHelper = new JourneyInfoHelper();
 			JourneyData journeyData = jHelper.getJourneyData(myAgent, problem.depot.location, v.location);
 			CostVariables costVars = jHelper.getCostVariables(myAgent);
-			double reward = 0.0d;
+			double maxBid = 0.0d;
 			if (journeyData != null) {
 				if(transportMode.equals("Car")){
 					if(minimiseFactor.equals("Emissions")){
-						reward = journeyData.carEm;
+						maxBid = journeyData.carEm;
 					}else if(minimiseFactor.equals("Cost")){
-						reward = ((journeyData.carDist * costVars.carCostsPerKM) + ((journeyData.carTime/60.0d) * costVars.staffCostPerHour));
+						maxBid = ((journeyData.carDist * costVars.carCostsPerKM) + ((journeyData.carTime/60.0d) * costVars.staffCostPerHour));
 					}
 				}else if(transportMode.equals("Public Transport")){
 					if(minimiseFactor.equals("Emissions")){
-						reward = journeyData.ptEm;
+						maxBid = journeyData.ptEm;
 					}else if(minimiseFactor.equals("Cost")){
-						reward = (journeyData.ptTime/60.0d) * costVars.staffCostPerHour;
+						maxBid = (journeyData.ptTime/60.0d) * costVars.staffCostPerHour;
 					}
 				}else if(transportMode.equals("Car Share")){
 					if(minimiseFactor.equals("Emissions")){
-						reward = 0;
+						maxBid = 0;
 					}else if(minimiseFactor.equals("Cost")){
-						reward = ((journeyData.carTime/60.0d) * costVars.staffCostPerHour);
+						maxBid = ((journeyData.carTime/60.0d) * costVars.staffCostPerHour);
 					}
 				}
 			}
 			
-			return reward;
+			return maxBid * 2;
 		}
 		
 		protected void sendAllVisits(){

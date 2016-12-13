@@ -40,8 +40,8 @@ public class MBCPlayerBidder extends Bidder {
 	// The Accountant for this Bidder Agent
 	protected MBCAccountant accountant = new MBCAccountant();
 	
-	// The reward expected for winning the bid
-	protected double rewardForSuccessfulBid = 0.0d;
+	// The max bid allowed for the current visit
+	protected double maxBidForVisit = 0.0d;
 	
 	@Override
 	protected void setup(){
@@ -63,8 +63,8 @@ public class MBCPlayerBidder extends Bidder {
 		return behaviour.costForAddingAt(v, position);
 	}
 	
-	public double getReward(VisitData v, int position){
-		return rewardForSuccessfulBid;
+	public double getMaxBid(VisitData v){
+		return maxBidForVisit;
 	}
 	
 	
@@ -107,13 +107,13 @@ public class MBCPlayerBidder extends Bidder {
 			}
 		}
 		
-		protected void getVisitReward(){
-			ACLMessage allVisitsMsg = myAgent.blockingReceive(MessageTemplate.MatchConversationId("visit-reward"));
+		protected void getMaxBid(){
+			ACLMessage allVisitsMsg = myAgent.blockingReceive(MessageTemplate.MatchConversationId("visit-max-bid"));
 			if(allVisitsMsg != null){
 				try {
 					ContentElement d = myAgent.getContentManager().extractContent(allVisitsMsg);
 					if (d instanceof GiveObjectPredicate) {
-						rewardForSuccessfulBid = (Double) ((GiveObjectPredicate) d).getData();
+						maxBidForVisit = (Double) ((GiveObjectPredicate) d).getData();
 					}
 				} catch (UngroundedException e) {
 					e.printStackTrace();
@@ -126,59 +126,82 @@ public class MBCPlayerBidder extends Bidder {
 		}
 		
 		protected void startTurn(VisitData v){
-			getVisitReward();
+			// Get the max bid
+			getMaxBid();
+			// Receive updated list of visits (showing available and unavailable)
 			receiveAvailableVisits();
-			gui.setBalance(accountant.getBalance());
 			
+			// Create a list of positions that the new visit can be added at
 			List<Integer> possibleLocations = new ArrayList<Integer>();
 			for(int i = 0; i <= route.visits.size(); i++){
 				if(canAddAt(v, i)){
 					possibleLocations.add(i);
 				}
 			}
-			
-			getXYCoords(route.visits);
 
-			Point2D.Double visitCoords = requestCoordinates(v.location);
-			v.setX(visitCoords.x);
-			v.setY(visitCoords.y);
-			
-			
-			List<TimingRepresentation> times = new ArrayList<TimingRepresentation>();
-			if(route.visits.size() > 0){
-				Calendar cal = Calendar.getInstance();
-				cal.setTime(depot.commenceTime);
-				int initTravelTime = (int) journeyInfo.getTravelTime(myAgent, depot.location, route.visits.get(0).location, route.visits.get(0).transport);
-				times.add(new TimingRepresentation(initTravelTime, TimeType.Travel));
-				cal.add(Calendar.MINUTE, initTravelTime);
-				for(int i = 0; i < route.visits.size(); i++){
-					VisitData vd = route.visits.get(i);
-					if (cal.getTime().before(vd.windowStart)) {
-						if(i == 0){
-							cal.setTime(route.visits.get(0).windowStart);
-						    long diffInMillies = depot.commenceTime.getTime() - cal.getTime().getTime();
+			// Update the gui with the balance
+			if(gui != null){
+				gui.setBalance(accountant.getBalance());			
+				// Get render coordinates for the visits
+				getXYCoords(route.visits);
+				
+				// Get render coordinates for the new visit
+				Point2D.Double visitCoords = requestCoordinates(v.location);
+				v.setX(visitCoords.x);
+				v.setY(visitCoords.y);
+	
+				// Create a list of timings for rendering
+				List<TimingRepresentation> times = new ArrayList<TimingRepresentation>();
+				if(route.visits.size() > 0){
+					Calendar cal = Calendar.getInstance();
+					cal.setTime(depot.commenceTime);
+					int initTravelTime = (int) journeyInfo.getTravelTime(myAgent, depot.location, route.visits.get(0).location, route.visits.get(0).transport);
+					times.add(new TimingRepresentation(initTravelTime, TimeType.Travel));
+					cal.add(Calendar.MINUTE, initTravelTime);
+					for(int i = 0; i < route.visits.size(); i++){
+						VisitData vd = route.visits.get(i);
+						if (cal.getTime().before(vd.windowStart)) {
+							System.out.println(depot.commenceTime.getTime() +", "+ cal.getTime().getTime());
+							if(i == 0){
+								cal.setTime(route.visits.get(0).windowStart);
+							    long diffInMillies = cal.getTime().getTime() - depot.commenceTime.getTime();
+							    int timeDiff = (int) TimeUnit.MINUTES.convert(diffInMillies,TimeUnit.MINUTES);
+								times.add(new TimingRepresentation(timeDiff, TimeType.Empty));
+							}
+						}
+						
+						cal.add(Calendar.MINUTE, (int) vd.visitLength);
+						times.add(new TimingRepresentation((int)vd.visitLength, TimeType.Visit));
+						
+						if(vd instanceof CarShare){
+							int travelTime = (int) journeyInfo.getTravelTime(myAgent, ((CarShare) vd).endLocation, (i+1 == route.visits.size() ? depot.location : route.visits.get(i+1).location), vd.transport);	
+							cal.add(Calendar.MINUTE, travelTime);	
+							times.add(new TimingRepresentation(travelTime, TimeType.Travel));
+						}else{
+							int travelTime = (int) journeyInfo.getTravelTime(myAgent, vd.location, (i+1 == route.visits.size() ? depot.location : route.visits.get(i+1).location), vd.transport);
+							cal.add(Calendar.MINUTE, travelTime);
+							times.add(new TimingRepresentation(travelTime, TimeType.Travel));
+						}
+						
+						if(i == route.visits.size() - 1){
+							Calendar endTime = Calendar.getInstance();
+							endTime.setTime(cal.getTime());
+							endTime.set(Calendar.MINUTE, 0);
+							endTime.set(Calendar.HOUR_OF_DAY, 17);
+						    long diffInMillies = endTime.getTime().getTime() - cal.getTime().getTime();
 						    int timeDiff = (int) TimeUnit.MINUTES.convert(diffInMillies,TimeUnit.MILLISECONDS);
-							times.add(new TimingRepresentation(timeDiff, TimeType.Empty));
+						    if(timeDiff > 0){
+						    	times.add(new TimingRepresentation(timeDiff, TimeType.Empty));
+						    }
 						}
 					}
-					
-					cal.add(Calendar.MINUTE, (int) vd.visitLength);
-					times.add(new TimingRepresentation((int)vd.visitLength, TimeType.Visit));
-					
-					if(vd instanceof CarShare){
-						int travelTime = (int) journeyInfo.getTravelTime(myAgent, ((CarShare) vd).endLocation, (i+1 == route.visits.size() ? depot.location : route.visits.get(i+1).location), vd.transport);	
-						cal.add(Calendar.MINUTE, travelTime);	
-						times.add(new TimingRepresentation(travelTime, TimeType.Travel));
-					}else{
-						int travelTime = (int) journeyInfo.getTravelTime(myAgent, vd.location, (i+1 == route.visits.size() ? depot.location : route.visits.get(i+1).location), vd.transport);
-						cal.add(Calendar.MINUTE, travelTime);
-						times.add(new TimingRepresentation(travelTime, TimeType.Travel));
-					}
 				}
+				
+				// Update the GUI for this turn
+				gui.renderTurn(route.visits, possibleLocations, v, times);
+				gui.setGameState("Bidding for " + v.name);
+
 			}
-			
-			gui.renderTurn(route.visits, possibleLocations, v, times);
-			gui.setGameState("Bidding for " + v.name);
 			moveMade = false;
 		}
 
@@ -236,9 +259,9 @@ public class MBCPlayerBidder extends Bidder {
 			}
 
 			// Store the value of the bid
-			double bid = costForAddingAt(v, addAt);			
+			double bid = nextMove.bid;//costForAddingAt(v, addAt);			
 			addAt = nextMove.insertLocation;
-			
+
 			return (nextMove.acceptVisit ? bid : Double.MIN_VALUE);
 		}
 
@@ -378,14 +401,14 @@ public class MBCPlayerBidder extends Bidder {
 				route.visits.add(addAt, result.carShare);
 				v.transport = "Public Transport";
 				// Update the accountant
-				accountant.updateBalance(rewardForSuccessfulBid - costForAddingAt(v, addAt));
+				accountant.updateBalance(behaviour.nextMove.bid - costForAddingAt(v, addAt));
 				route.visits.add(addAt + 1, v);
 				System.out.println("CARSHARE");
 			}else{
 				// Determine the transport mode and add the visit
 				v.transport = determineTransportMode(v, addAt);
 				// Update the accountant
-				accountant.updateBalance(rewardForSuccessfulBid - costForAddingAt(v, addAt));
+				accountant.updateBalance(behaviour.nextMove.bid - costForAddingAt(v, addAt));
 				route.visits.add(addAt, v);
 			}			
 		}
