@@ -198,8 +198,10 @@ public class MBCPlayerBidder extends Bidder {
 				}
 				
 				// Update the GUI for this turn
-				gui.renderTurn(route.visits, possibleLocations, v, times);
-				gui.setGameState("Bidding for " + v.name);
+				if(gui != null){
+					gui.renderTurn(route.visits, possibleLocations, v, times);
+					gui.setGameState("Bidding for " + v.name);
+				}
 
 			}
 			moveMade = false;
@@ -375,7 +377,7 @@ public class MBCPlayerBidder extends Bidder {
 
 		@Override
 		public void handleWonBid(VisitData v) {
-			gui.showMessage("Won: " + v.name + "\n");
+			double oldBalance = accountant.getBalance();
 			
 			if(carShare != null){
 				// Inform the CarShareServer that you accept the CarShare
@@ -401,22 +403,31 @@ public class MBCPlayerBidder extends Bidder {
 				route.visits.add(addAt, result.carShare);
 				v.transport = "Public Transport";
 				// Update the accountant
-				accountant.updateBalance(behaviour.nextMove.bid - costForAddingAt(v, addAt));
+				accountant.updateBalance(nextMove.bid - costForAddingAt(v, addAt));
 				route.visits.add(addAt + 1, v);
 				System.out.println("CARSHARE");
 			}else{
 				// Determine the transport mode and add the visit
 				v.transport = determineTransportMode(v, addAt);
 				// Update the accountant
-				accountant.updateBalance(behaviour.nextMove.bid - costForAddingAt(v, addAt));
+				accountant.updateBalance(nextMove.bid - costForAddingAt(v, addAt));
 				route.visits.add(addAt, v);
 			}			
+
+			if(gui != null){
+				// Inform of won bid and show gain / loss
+				double diff = Math.abs(oldBalance - accountant.getBalance());
+				gui.showMessage("Won: "+ v.name +" with bid of "+ (Math.round(nextMove.bid * 10)/10.0) +" ("+ (Math.round(diff * 10)/10.0) + (diff < 0 ? " Loss" : " Profit") +")\n");
+			}
+			
 		}
 
 		@Override
-		public boolean finishUp() {
-			gui.showMessage("Bidding Complete.");
-			gui.setGameState("Auction Closed.");
+		public boolean finishUp(){
+			if(gui != null){
+				gui.showMessage("Bidding Complete.");
+				gui.setGameState("Auction Closed.");
+			}
 			doDelete();
 			return true;
 		}

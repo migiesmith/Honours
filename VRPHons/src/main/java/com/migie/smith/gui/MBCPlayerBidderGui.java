@@ -80,7 +80,7 @@ public class MBCPlayerBidderGui extends JFrame {
 	private JSpinner currentBidSpinner;
 	private JLabel lblTimeFrame;
 	private JLabel lblLog;
-	private JLabel lblInsertPos;
+	private JLabel lblAddAt;
 	
 	
 	public void showMessage(String message){
@@ -403,7 +403,9 @@ public class MBCPlayerBidderGui extends JFrame {
 		JButton btnBid = new JButton("Bid");
 		btnBid.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				player.makeMove(new MBCBidderMove((Integer)lsInsertLocation.getSelectedValue(), Double.valueOf(currentBidSpinner.getValue().toString()), true));
+				if(newVisit != null){
+					player.makeMove(new MBCBidderMove((Integer)lsInsertLocation.getSelectedValue(), Double.valueOf(currentBidSpinner.getValue().toString()), true));
+				}
 				endTurn();
 			}
 		});
@@ -442,47 +444,39 @@ public class MBCPlayerBidderGui extends JFrame {
 		
 		lblLog = new JLabel("Log:");
 		
-		lblInsertPos = new JLabel("Insert Position:");
-		lblInsertPos.setHorizontalAlignment(SwingConstants.CENTER);
+		lblAddAt = new JLabel("Add At:");
+		lblAddAt.setHorizontalAlignment(SwingConstants.CENTER);
 		
 		GroupLayout gl_contentPane = new GroupLayout(contentPane);
 		gl_contentPane.setHorizontalGroup(
 			gl_contentPane.createParallelGroup(Alignment.LEADING)
 				.addGroup(gl_contentPane.createSequentialGroup()
+					.addContainerGap()
+					.addGroup(gl_contentPane.createParallelGroup(Alignment.TRAILING)
+						.addComponent(lblGameState, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, 358, Short.MAX_VALUE)
+						.addComponent(turnPanel, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, 358, Short.MAX_VALUE)
+						.addComponent(lblNewLabel, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, 358, Short.MAX_VALUE))
+					.addPreferredGap(ComponentPlacement.RELATED)
 					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
 						.addGroup(gl_contentPane.createSequentialGroup()
-							.addGap(30)
-							.addComponent(lblGameState, GroupLayout.DEFAULT_SIZE, 301, Short.MAX_VALUE)
-							.addGap(37)
+							.addComponent(lblBid)
+							.addGap(8)
+							.addComponent(currentBidSpinner, GroupLayout.PREFERRED_SIZE, 140, GroupLayout.PREFERRED_SIZE))
+						.addComponent(lblMaxBid, GroupLayout.DEFAULT_SIZE, 290, Short.MAX_VALUE)
+						.addComponent(lblTimeFrame, GroupLayout.DEFAULT_SIZE, 290, Short.MAX_VALUE)
+						.addComponent(lblSuggestedBid, GroupLayout.DEFAULT_SIZE, 290, Short.MAX_VALUE)
+						.addGroup(Alignment.TRAILING, gl_contentPane.createSequentialGroup()
+							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING, false)
+								.addComponent(lblLog, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+								.addComponent(scrollPane, GroupLayout.DEFAULT_SIZE, 221, Short.MAX_VALUE))
+							.addPreferredGap(ComponentPlacement.UNRELATED)
 							.addGroup(gl_contentPane.createParallelGroup(Alignment.TRAILING)
-								.addComponent(lblBalance, GroupLayout.DEFAULT_SIZE, 306, Short.MAX_VALUE)
-								.addComponent(btnBid, GroupLayout.DEFAULT_SIZE, 306, Short.MAX_VALUE)
-								.addComponent(btnReject, GroupLayout.DEFAULT_SIZE, 306, Short.MAX_VALUE)
-								.addComponent(lblMaxBid, GroupLayout.DEFAULT_SIZE, 306, Short.MAX_VALUE)
-								.addComponent(lblSuggestedBid, GroupLayout.DEFAULT_SIZE, 306, Short.MAX_VALUE)
-								.addGroup(gl_contentPane.createSequentialGroup()
-									.addPreferredGap(ComponentPlacement.RELATED)
-									.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-										.addComponent(lblTimeFrame, GroupLayout.DEFAULT_SIZE, 306, Short.MAX_VALUE)
-										.addGroup(gl_contentPane.createSequentialGroup()
-											.addComponent(lblBid)
-											.addPreferredGap(ComponentPlacement.UNRELATED)
-											.addComponent(currentBidSpinner, GroupLayout.PREFERRED_SIZE, 140, GroupLayout.PREFERRED_SIZE))
-										.addComponent(timingPanel, GroupLayout.DEFAULT_SIZE, 306, Short.MAX_VALUE)))
-								.addGroup(gl_contentPane.createSequentialGroup()
-									.addComponent(scrollPane, GroupLayout.DEFAULT_SIZE, 227, Short.MAX_VALUE)
-									.addPreferredGap(ComponentPlacement.RELATED)
-									.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING, false)
-										.addComponent(lblInsertPos, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-										.addComponent(scrollPane_1, GroupLayout.DEFAULT_SIZE, 71, Short.MAX_VALUE)))))
-						.addGroup(gl_contentPane.createSequentialGroup()
-							.addContainerGap()
-							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-								.addComponent(lblNewLabel)
-								.addComponent(turnPanel, GroupLayout.PREFERRED_SIZE, 340, GroupLayout.PREFERRED_SIZE))
-							.addGap(18)
-							.addComponent(lblLog, GroupLayout.PREFERRED_SIZE, 142, GroupLayout.PREFERRED_SIZE)
-							.addPreferredGap(ComponentPlacement.RELATED, 164, Short.MAX_VALUE)))
+								.addComponent(lblAddAt, GroupLayout.DEFAULT_SIZE, 59, Short.MAX_VALUE)
+								.addComponent(scrollPane_1, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, 59, Short.MAX_VALUE)))
+						.addComponent(timingPanel, GroupLayout.DEFAULT_SIZE, 290, Short.MAX_VALUE)
+						.addComponent(btnBid, GroupLayout.DEFAULT_SIZE, 290, Short.MAX_VALUE)
+						.addComponent(btnReject, GroupLayout.DEFAULT_SIZE, 290, Short.MAX_VALUE)
+						.addComponent(lblBalance, GroupLayout.DEFAULT_SIZE, 290, Short.MAX_VALUE))
 					.addContainerGap())
 		);
 		gl_contentPane.setVerticalGroup(
@@ -497,26 +491,26 @@ public class MBCPlayerBidderGui extends JFrame {
 							.addComponent(btnBid)
 							.addGap(5)
 							.addComponent(btnReject)
-							.addPreferredGap(ComponentPlacement.UNRELATED)
+							.addGap(11)
 							.addComponent(lblSuggestedBid)
 							.addPreferredGap(ComponentPlacement.RELATED)
 							.addComponent(lblMaxBid)
 							.addPreferredGap(ComponentPlacement.RELATED)
-							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
+							.addGroup(gl_contentPane.createParallelGroup(Alignment.BASELINE)
 								.addComponent(lblBid)
 								.addComponent(currentBidSpinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
 							.addPreferredGap(ComponentPlacement.UNRELATED)
 							.addComponent(lblTimeFrame)
 							.addPreferredGap(ComponentPlacement.RELATED)
 							.addComponent(timingPanel, GroupLayout.PREFERRED_SIZE, 37, GroupLayout.PREFERRED_SIZE)
+							.addPreferredGap(ComponentPlacement.UNRELATED)
+							.addGroup(gl_contentPane.createParallelGroup(Alignment.BASELINE)
+								.addComponent(lblLog)
+								.addComponent(lblAddAt))
 							.addPreferredGap(ComponentPlacement.RELATED)
 							.addGroup(gl_contentPane.createParallelGroup(Alignment.TRAILING)
-								.addComponent(lblInsertPos)
-								.addComponent(lblLog))
-							.addPreferredGap(ComponentPlacement.RELATED)
-							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-								.addComponent(scrollPane, Alignment.TRAILING, GroupLayout.DEFAULT_SIZE, 196, Short.MAX_VALUE)
-								.addComponent(scrollPane_1, GroupLayout.DEFAULT_SIZE, 196, Short.MAX_VALUE)))
+								.addComponent(scrollPane, GroupLayout.DEFAULT_SIZE, 191, Short.MAX_VALUE)
+								.addComponent(scrollPane_1, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, 191, Short.MAX_VALUE)))
 						.addComponent(turnPanel, GroupLayout.DEFAULT_SIZE, 412, Short.MAX_VALUE))
 					.addPreferredGap(ComponentPlacement.RELATED)
 					.addComponent(lblGameState))
