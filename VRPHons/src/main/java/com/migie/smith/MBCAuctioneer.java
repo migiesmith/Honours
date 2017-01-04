@@ -23,11 +23,14 @@ import agent.auctionSolution.dataObjects.Route;
 import agent.auctionSolution.dataObjects.VisitData;
 import agent.auctionSolution.ontologies.GiveObjectPredicate;
 import agent.auctionSolution.ontologies.GiveOntology;
+import jade.content.ContentElement;
 import jade.content.lang.Codec.CodecException;
 import jade.content.lang.sl.SLCodec;
 import jade.content.onto.OntologyException;
+import jade.content.onto.UngroundedException;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
 
 public class MBCAuctioneer extends Auctioneer{
 
@@ -206,10 +209,48 @@ public class MBCAuctioneer extends Auctioneer{
 			}
 		}
 		
+		protected void handleBidderLogs(){
+			System.out.println("Waiting");
+			ACLMessage bidLog = myAgent.receive(MessageTemplate.MatchConversationId("bidder-log"));
+			while(bidLog != null){
+				System.out.println("Got a log");
+				/*
+				try {
+					ContentElement d = myAgent.getContentManager().extractContent(allVisitsMsg);
+					if (d instanceof GiveObjectPredicate) {
+						if(allVisits == null){
+							allVisits = (List<VisitData>) ((GiveObjectPredicate) d).getData();
+							getXYCoords(allVisits);
+							gui.setAllVisits(allVisits);
+						}else{
+							availableVisits = (List<VisitData>) ((GiveObjectPredicate) d).getData();
+							getXYCoords(availableVisits);
+							gui.setAvailableVisits(availableVisits);
+						}
+					}
+				} catch (UngroundedException e) {
+					e.printStackTrace();
+				} catch (CodecException e) {
+					e.printStackTrace();
+				} catch (OntologyException e) {
+					e.printStackTrace();
+				}
+				*/
+				
+				// Check for another log
+				bidLog = myAgent.receive(MessageTemplate.MatchConversationId("bidder-log"));
+			}
+			
+			// Save the aggregated log data
+			// TODO
+		}
+		
 		@Override
 		protected boolean finishUp() {
 			calcRenderOffsets();
 
+			handleBidderLogs();
+			
 			// Sum up the total visits
 			int totalVisits = 0;
 			double totalEmissions = 0.0d;

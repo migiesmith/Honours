@@ -37,6 +37,8 @@ public class MBCPlayerBidder extends Bidder {
 	protected List<VisitData> allVisits = null;
 	protected List<VisitData> availableVisits = null;
 
+	protected Log bidLog;
+	
 	// The Accountant for this Bidder Agent
 	protected MBCAccountant accountant = new MBCAccountant();
 	
@@ -46,7 +48,10 @@ public class MBCPlayerBidder extends Bidder {
 	@Override
 	protected void setup(){
 		gui = new MBCPlayerBidderGui(this);
-		behaviour = new MBCBidderBehaviour();
+		
+		bidLog = new Log();
+		
+		behaviour = new MBCBidderBehaviour();		
 		addBehaviour(behaviour);
 	}
 
@@ -248,7 +253,7 @@ public class MBCPlayerBidder extends Bidder {
 		}
 		
 		@Override
-		public double getBid(VisitData v) {			
+		public double getBid(VisitData v) {
 			startTurn(v);
 			
 			// Wait for the player to make a move
@@ -425,9 +430,28 @@ public class MBCPlayerBidder extends Bidder {
 		@Override
 		public boolean finishUp(){
 			if(gui != null){
-				gui.showMessage("Bidding Complete.");
+				gui.showMessage("Bidding Complete.\n");
 				gui.setGameState("Auction Closed.");
 			}
+			
+			// Send log to the Auctioneer
+			ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+			msg.setConversationId("bidder-log");
+			msg.addReceiver(new AID("Auctioneer", AID.ISLOCALNAME));
+			msg.setLanguage(codec.getName());
+			msg.setOntology(ontologyGive.getName());
+			try {
+				GiveObjectPredicate give = new GiveObjectPredicate();
+				give.setData(bidLog.getLog());
+				myAgent.getContentManager().fillContent(msg, give);
+				myAgent.send(msg);
+				System.out.println("Sent my log.");
+			} catch (CodecException e) {
+				e.printStackTrace();
+			} catch (OntologyException e) {
+				e.printStackTrace();
+			}
+			
 			doDelete();
 			return true;
 		}
