@@ -23,12 +23,14 @@ import agent.auctionSolution.dataObjects.Route;
 import agent.auctionSolution.dataObjects.VisitData;
 import agent.auctionSolution.ontologies.GiveObjectPredicate;
 import agent.auctionSolution.ontologies.GiveOntology;
-import jade.content.ContentElement;
 import jade.content.lang.Codec.CodecException;
 import jade.content.lang.sl.SLCodec;
 import jade.content.onto.OntologyException;
-import jade.content.onto.UngroundedException;
 import jade.core.AID;
+import jade.domain.DFService;
+import jade.domain.FIPAException;
+import jade.domain.FIPAAgentManagement.DFAgentDescription;
+import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 
@@ -51,15 +53,56 @@ public class MBCAuctioneer extends Auctioneer{
 		bidders = new ArrayList<AID>();
 		renderOffset = new Rectangle2D.Double(0, 0, 0, 0);
 		
+		// Find agents to use and create more if needed
+		setupAgents(noBidders.get(currentProblem));
+		/*
 		// Create all agents including one player agent
 		createAgents(Bidder.class, 0, noBidders.get(currentProblem) - 1);
 		createAgents(MBCPlayerBidder.class, noBidders.get(currentProblem) - 1, 1);
+		*/		
 		
 		// If there is already an auction behaviour, remove it
 		if(auction != null)
 			removeBehaviour(auction);
 		// Add a new auction behaviour
 		addBehaviour(getAuctionBehaviour());
+	}
+
+	// Find agents to use and create more if needed
+	protected void setupAgents(int biddersNeeded) {
+		DFAgentDescription dfd = new DFAgentDescription();
+		ServiceDescription sd = new ServiceDescription();
+		sd.setType("bidder");
+		dfd.addServices(sd);
+
+		DFAgentDescription[] searchResult = null;
+		try {
+			searchResult = DFService.search(this, dfd);
+			System.out.println(searchResult.length + " results");
+
+			ACLMessage bidderArgs = new ACLMessage(ACLMessage.INFORM);
+			bidderArgs.setConversationId("bidder-arguments");
+			
+			for(int i = 0; i < searchResult.length; i++){
+				System.out.println(" " + searchResult[i].getName());
+				bidders.add(searchResult[i].getName());
+				bidderArgs.addReceiver(searchResult[i].getName());
+			}
+			// Return limit, minimiseFactor, transportMode, isCarShareEnabled
+			bidderArgs.setContent(gui.getReturnableVisits() +","+ minimiseFactor +","+ transportMode +","+ gui.getAllowCarSharing());
+			send(bidderArgs);
+			
+		} catch (FIPAException e) {
+			e.printStackTrace();
+		}
+		int biddersToCreate = biddersNeeded;
+		if(searchResult != null){
+			biddersToCreate -= searchResult.length;
+		}
+		// Create more agents if needed
+		if(biddersToCreate > 0){
+			createAgents(Bidder.class, biddersNeeded - biddersToCreate, biddersToCreate);
+		}
 	}
 	
 	@Override

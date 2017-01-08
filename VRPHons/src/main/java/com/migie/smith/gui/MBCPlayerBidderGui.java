@@ -185,6 +185,7 @@ public class MBCPlayerBidderGui extends JFrame {
 		
 		// Draw the depot
 		Depot depot = player.getDepot();
+		if(depot != null){
 		g2.setColor(Color.red);
 		g2.fillOval(-2,-2,2,2);
 		g2.setColor(Color.black);
@@ -293,7 +294,7 @@ public class MBCPlayerBidderGui extends JFrame {
 				possibleLocations.remove(possibleLocations.size()-1);
 			}
 		}
-		
+		}
 		// Draw to the screen
 		Graphics gPanel = turnPanel.getGraphics();
 		gPanel.drawImage(b, 0, 0, null);

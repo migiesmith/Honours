@@ -14,6 +14,9 @@ public class StartBidderMain {
 
 	public static void main(String[] args){
 
+
+		// TODO make gui for requesting ip address
+		
 		String host = "192.168.0.2";
 		String port = "1099";
 		
@@ -36,7 +39,6 @@ public class StartBidderMain {
 		    //rma.start();
 		    
 			
-			// TODO
 		    AgentController bidder = myContainer.createNewAgent("Bidder", MBCPlayerBidder.class.getCanonicalName(), null);
 		    bidder.start();
 

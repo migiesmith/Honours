@@ -4,7 +4,6 @@ package com.migie.smith;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -14,7 +13,6 @@ import com.migie.smith.gui.MBCPlayerBidderGui;
 import agent.auctionSolution.Bidder;
 import agent.auctionSolution.JourneyInfoHelper;
 import agent.auctionSolution.bidder.BidderBehaviour;
-import agent.auctionSolution.dataObjects.CostVariables;
 import agent.auctionSolution.dataObjects.Depot;
 import agent.auctionSolution.dataObjects.VisitData;
 import agent.auctionSolution.dataObjects.carShare.CarShare;
@@ -26,6 +24,10 @@ import jade.content.lang.Codec.CodecException;
 import jade.content.onto.OntologyException;
 import jade.content.onto.UngroundedException;
 import jade.core.AID;
+import jade.domain.DFService;
+import jade.domain.FIPAException;
+import jade.domain.FIPAAgentManagement.DFAgentDescription;
+import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 
@@ -47,14 +49,40 @@ public class MBCPlayerBidder extends Bidder {
 	
 	@Override
 	protected void setup(){
-		gui = new MBCPlayerBidderGui(this);
-		
-		bidLog = new Log();
-		
 		behaviour = new MBCBidderBehaviour();		
 		addBehaviour(behaviour);
+		
+		gui = new MBCPlayerBidderGui(this);
+		bidLog = new Log();
+		
+		// Register Agent with the DF Service so that the Auctioneer can contact it
+		registerWithDF();
 	}
 
+	protected void registerWithDF() {
+		// Register this Agent with the DF Service
+		DFAgentDescription dfd = new DFAgentDescription();
+		dfd.setName(getAID());
+		ServiceDescription sd = new ServiceDescription();
+		sd.setType("bidder");
+		sd.setName(getLocalName());
+		dfd.addServices(sd);
+		try {
+			DFService.register(this, dfd);
+		} catch (FIPAException fe) {
+			fe.printStackTrace();
+		}
+
+	}
+
+	protected void takeDown() {
+		// Remove from DF Service
+		try {
+			DFService.deregister(this);
+		} catch (Exception e) {
+		}
+	}
+	
 	public void makeMove(MBCBidderMove nextMove){
 		behaviour.moveMade = true;
 		behaviour.nextMove = nextMove;
@@ -89,6 +117,7 @@ public class MBCPlayerBidder extends Bidder {
 		protected void receiveAvailableVisits(){
 			ACLMessage allVisitsMsg = myAgent.receive(MessageTemplate.MatchConversationId("available-visits"));
 			if(allVisitsMsg != null){
+				System.out.println("GOT VISITS");
 				try {
 					ContentElement d = myAgent.getContentManager().extractContent(allVisitsMsg);
 					if (d instanceof GiveObjectPredicate) {
@@ -109,6 +138,8 @@ public class MBCPlayerBidder extends Bidder {
 				} catch (OntologyException e) {
 					e.printStackTrace();
 				}
+			}else{
+				System.out.println("NO VISITS");
 			}
 		}
 		
@@ -242,7 +273,7 @@ public class MBCPlayerBidder extends Bidder {
 			// Send message for coordinates for the depot
 			ACLMessage msg = new ACLMessage(ACLMessage.REQUEST);
 			msg.setConversationId("visit-coordinates");
-			msg.addReceiver(new AID("Map-Server", AID.ISLOCALNAME));
+			msg.addReceiver(journeyInfo.getMapServerAID(myAgent));
 			msg.setContent(location);
 			send(msg);
 			// Wait for a response
