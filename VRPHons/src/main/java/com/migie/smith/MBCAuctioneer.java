@@ -84,7 +84,7 @@ public class MBCAuctioneer extends Auctioneer{
 			bidderArgs.setConversationId("bidder-arguments");
 			
 			for(int i = 0; i < searchResult.length; i++){
-				System.out.println(" " + searchResult[i].getName());
+				System.out.println(" |" + searchResult[i].getName().getLocalName());
 				bidders.add(searchResult[i].getName());
 				bidderArgs.addReceiver(searchResult[i].getName());
 			}

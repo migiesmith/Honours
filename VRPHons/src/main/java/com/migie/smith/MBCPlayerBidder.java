@@ -117,7 +117,6 @@ public class MBCPlayerBidder extends Bidder {
 		protected void receiveAvailableVisits(){
 			ACLMessage allVisitsMsg = myAgent.receive(MessageTemplate.MatchConversationId("available-visits"));
 			if(allVisitsMsg != null){
-				System.out.println("GOT VISITS");
 				try {
 					ContentElement d = myAgent.getContentManager().extractContent(allVisitsMsg);
 					if (d instanceof GiveObjectPredicate) {
@@ -138,8 +137,6 @@ public class MBCPlayerBidder extends Bidder {
 				} catch (OntologyException e) {
 					e.printStackTrace();
 				}
-			}else{
-				System.out.println("NO VISITS");
 			}
 		}
 		
@@ -459,16 +456,42 @@ public class MBCPlayerBidder extends Bidder {
 		}
 
 		@Override
+		public void resetBidder(){
+			super.resetBidder();
+			
+			// Clear the lists used to update the GUI
+			allVisits = null;
+			availableVisits = null;
+
+			// Create a new log
+			bidLog = new Log();
+
+			// Reset the accountant
+			accountant = new MBCAccountant(); // TODO maybe leave this out to leave a running total so that players can compare overall score
+
+			// Return maxBidForVisit to its default value
+			maxBidForVisit = 0.0d;
+
+			// Return addAt to its default value
+			addAt = -1;
+			// Return moveMade to its default value
+			moveMade = false;
+			// Clear the nextMove
+			nextMove = null;
+		}
+		
+		@Override
 		public boolean finishUp(){
 			if(gui != null){
 				gui.showMessage("Bidding Complete.\n");
 				gui.setGameState("Auction Closed.");
 			}
 			
+			
 			// Send log to the Auctioneer
 			ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
 			msg.setConversationId("bidder-log");
-			msg.addReceiver(new AID("Auctioneer", AID.ISLOCALNAME));
+			msg.addReceiver(this.auctioneerAID);
 			msg.setLanguage(codec.getName());
 			msg.setOntology(ontologyGive.getName());
 			try {
@@ -483,7 +506,6 @@ public class MBCPlayerBidder extends Bidder {
 				e.printStackTrace();
 			}
 			
-			doDelete();
 			return true;
 		}
 

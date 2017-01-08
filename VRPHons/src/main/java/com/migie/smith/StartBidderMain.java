@@ -39,7 +39,7 @@ public class StartBidderMain {
 		    //rma.start();
 		    
 			
-		    AgentController bidder = myContainer.createNewAgent("Bidder", MBCPlayerBidder.class.getCanonicalName(), null);
+		    AgentController bidder = myContainer.createNewAgent("Bidder", MBCPlayerBidder.class.getCanonicalName(), new Object[]{true});
 		    bidder.start();
 
 		} catch(StaleProxyException e) {
