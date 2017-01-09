@@ -1,11 +1,8 @@
 package com.migie.smith;
 
-import agent.auctionSolution.MapServer;
 import jade.core.Profile;
 import jade.core.ProfileImpl;
 import jade.core.Runtime;
-import jade.domain.AMSService;
-import jade.domain.FIPAAgentManagement.AMSAgentDescription;
 import jade.wrapper.AgentController;
 import jade.wrapper.ContainerController;
 import jade.wrapper.StaleProxyException;

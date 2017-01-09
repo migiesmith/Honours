@@ -297,6 +297,10 @@ public class MBCPlayerBidder extends Bidder {
 			double bid = nextMove.bid;//costForAddingAt(v, addAt);			
 			addAt = nextMove.insertLocation;
 
+			if(nextMove.acceptVisit){
+				bidLog.log(nextMove.bid +","+ costForAddingAt(v, nextMove.insertLocation) +","+ maxBidForVisit);
+			}
+			
 			return (nextMove.acceptVisit ? bid : Double.MIN_VALUE);
 		}
 
@@ -372,14 +376,14 @@ public class MBCPlayerBidder extends Bidder {
 				double cost1 = getJourneyCost(v.location, depot.location, minimiseFactor, v.transport);
 				double currentCost = getJourneyCost(route.visits.get(position-1).location, depot.location, minimiseFactor, v.transport);
 				
-				return -((cost0 + cost1) - currentCost);
+				return Math.abs((cost0 + cost1) - currentCost);
 				
 			}else{
 				double cost0 = getJourneyCost(position-1 < 0 ? depot.location : route.visits.get(position-1).location, v.location, minimiseFactor, v.transport);
 				double cost1 = getJourneyCost(v.location, route.visits.get(position).location, minimiseFactor, v.transport);
 				double currentCost = getJourneyCost(position-1 < 0 ? depot.location : route.visits.get(position-1).location, route.visits.get(position).location, minimiseFactor, v.transport);
 				
-				return -((cost0 + cost1) - currentCost);
+				return Math.abs((cost0 + cost1) - currentCost);
 			}
 		}		
 		
@@ -435,15 +439,19 @@ public class MBCPlayerBidder extends Bidder {
 				carShare = null;
 				route.visits.add(addAt, result.carShare);
 				v.transport = "Public Transport";
+				
 				// Update the accountant
 				accountant.updateBalance(nextMove.bid - costForAddingAt(v, addAt));
+				
 				route.visits.add(addAt + 1, v);
 				System.out.println("CARSHARE");
 			}else{
 				// Determine the transport mode and add the visit
 				v.transport = determineTransportMode(v, addAt);
+				
 				// Update the accountant
-				accountant.updateBalance(nextMove.bid - costForAddingAt(v, addAt));
+				accountant.updateBalance(nextMove.bid - Math.abs(costForAddingAt(v, addAt)));
+				
 				route.visits.add(addAt, v);
 			}			
 

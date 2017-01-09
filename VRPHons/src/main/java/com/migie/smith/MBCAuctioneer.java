@@ -2,9 +2,14 @@ package com.migie.smith;
 
 import java.awt.geom.Rectangle2D;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import javax.swing.JOptionPane;
@@ -23,9 +28,11 @@ import agent.auctionSolution.dataObjects.Route;
 import agent.auctionSolution.dataObjects.VisitData;
 import agent.auctionSolution.ontologies.GiveObjectPredicate;
 import agent.auctionSolution.ontologies.GiveOntology;
+import jade.content.ContentElement;
 import jade.content.lang.Codec.CodecException;
 import jade.content.lang.sl.SLCodec;
 import jade.content.onto.OntologyException;
+import jade.content.onto.UngroundedException;
 import jade.core.AID;
 import jade.domain.DFService;
 import jade.domain.FIPAException;
@@ -253,23 +260,15 @@ public class MBCAuctioneer extends Auctioneer{
 		}
 		
 		protected void handleBidderLogs(){
-			System.out.println("Waiting");
 			ACLMessage bidLog = myAgent.receive(MessageTemplate.MatchConversationId("bidder-log"));
+			List<List<String>> logs = new ArrayList<List<String>>();
+			List<String> bidders = new ArrayList<String>();
 			while(bidLog != null){
-				System.out.println("Got a log");
-				/*
+				// Read the log from the message and store it in our log list
 				try {
-					ContentElement d = myAgent.getContentManager().extractContent(allVisitsMsg);
+					ContentElement d = myAgent.getContentManager().extractContent(bidLog);
 					if (d instanceof GiveObjectPredicate) {
-						if(allVisits == null){
-							allVisits = (List<VisitData>) ((GiveObjectPredicate) d).getData();
-							getXYCoords(allVisits);
-							gui.setAllVisits(allVisits);
-						}else{
-							availableVisits = (List<VisitData>) ((GiveObjectPredicate) d).getData();
-							getXYCoords(availableVisits);
-							gui.setAvailableVisits(availableVisits);
-						}
+						logs.add((List<String>) ((GiveObjectPredicate) d).getData());
 					}
 				} catch (UngroundedException e) {
 					e.printStackTrace();
@@ -278,14 +277,63 @@ public class MBCAuctioneer extends Auctioneer{
 				} catch (OntologyException e) {
 					e.printStackTrace();
 				}
-				*/
+				
+				bidders.add(bidLog.getSender().getLocalName());
 				
 				// Check for another log
 				bidLog = myAgent.receive(MessageTemplate.MatchConversationId("bidder-log"));
 			}
 			
+			// Get the length of the longest log
+			int logLength = 0;
+			for(List<String> log : logs){
+				if(log.size() > logLength){
+					logLength = log.size();
+				}
+			}
+			
 			// Save the aggregated log data
 			// TODO
+
+			try {
+				// Get the current date and time for the log file name
+				String timestamp = new SimpleDateFormat("yyyy-MM-dd-hhmm'.csv'").format(new Date());
+				
+				String logPath = files.get(currentProblem);
+				logPath = logPath.substring(0, logPath.lastIndexOf("\\")+1) + "results\\log_" + logPath.substring(logPath.lastIndexOf("\\")+1, logPath.length() - 4) +"_"+ timestamp;
+				System.out.println(logPath);
+				File f = new File(logPath.substring(0, logPath.lastIndexOf("\\")));
+				f.mkdirs();
+				f = new File(logPath);
+				f.createNewFile();
+				
+				FileWriter writer = new FileWriter(logPath);
+
+				
+				
+				for(int i = 0; i < bidders.size(); i++){
+					writer.append(","+ bidders.get(i)+ ",,");
+				}
+				writer.append("\n");
+				for(int i = 0; i < bidders.size(); i++){
+					writer.append("bid, cost, maxbid,");
+				}
+				writer.append("\n");
+				
+				for(int i = 0; i < logLength; i++){
+					for(List<String> log : logs){
+						if(log.size() > i){
+							writer.append(log.get(i));
+						}
+						writer.append(",");
+					}
+					writer.append("\n");
+				}
+				
+				writer.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 		
 		@Override
@@ -359,8 +407,8 @@ public class MBCAuctioneer extends Auctioneer{
 			
 			return true;
 		}
-
+		
 	}
-	
+
 	
 }
