@@ -9,6 +9,8 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.awt.geom.Line2D;
 import java.awt.image.BufferedImage;
 import java.util.Iterator;
@@ -42,7 +44,7 @@ import agent.auctionSolution.dataObjects.Depot;
 import agent.auctionSolution.dataObjects.HasXandY;
 import agent.auctionSolution.dataObjects.VisitData;
 
-public class MBCPlayerBidderGui extends JFrame {
+public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 
 	private JPanel contentPane;
 	private	MBCPlayerBidder player;
@@ -396,6 +398,9 @@ public class MBCPlayerBidderGui extends JFrame {
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
 		
+		this.addWindowListener(this);
+		
+		
 		JLabel lblNewLabel = new JLabel("Player Bidder");
 		lblNewLabel.setHorizontalAlignment(SwingConstants.CENTER);
 		
@@ -536,4 +541,18 @@ public class MBCPlayerBidderGui extends JFrame {
 		
 		this.player = player;
 	}
+
+	
+	public void windowClosing(WindowEvent e) {
+		System.out.println("CLOSE");
+		// Stop the agent associated with this window
+		this.player.doDelete();
+	}
+    public void windowClosed(WindowEvent e) {}
+	public void windowActivated(WindowEvent e) {}
+	public void windowDeactivated(WindowEvent e) {}
+	public void windowDeiconified(WindowEvent e) {}
+	public void windowIconified(WindowEvent e) {}
+	public void windowOpened(WindowEvent e) {}
+	
 }

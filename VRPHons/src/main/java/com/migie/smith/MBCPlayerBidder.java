@@ -75,6 +75,7 @@ public class MBCPlayerBidder extends Bidder {
 
 	}
 
+	@Override
 	protected void takeDown() {
 		// Remove from DF Service
 		try {

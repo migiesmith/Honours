@@ -85,7 +85,7 @@ public class MBCAuctioneer extends Auctioneer{
 		DFAgentDescription[] searchResult = null;
 		try {
 			searchResult = DFService.search(this, dfd);
-			System.out.println(searchResult.length + " results");
+			System.out.println(searchResult.length + " bidders available on DF");
 
 			ACLMessage bidderArgs = new ACLMessage(ACLMessage.INFORM);
 			bidderArgs.setConversationId("bidder-arguments");
