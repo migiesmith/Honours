@@ -7,6 +7,8 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import javax.swing.JOptionPane;
+
 import com.migie.smith.TimingRepresentation.TimeType;
 import com.migie.smith.gui.MBCPlayerBidderGui;
 
@@ -54,6 +56,7 @@ public class MBCPlayerBidder extends Bidder {
 		
 		gui = new MBCPlayerBidderGui(this);
 		bidLog = new Log();
+		bidLog.log("bid, cost, maxbid,");
 		
 		// Register Agent with the DF Service so that the Auctioneer can contact it
 		registerWithDF();
@@ -474,6 +477,7 @@ public class MBCPlayerBidder extends Bidder {
 
 			// Create a new log
 			bidLog = new Log();
+			bidLog.log("bid, cost, maxbid,");
 
 			// Reset the accountant
 			accountant = new MBCAccountant(); // TODO maybe leave this out to leave a running total so that players can compare overall score
@@ -496,6 +500,11 @@ public class MBCPlayerBidder extends Bidder {
 				gui.setGameState("Auction Closed.");
 			}
 			
+			// Ask user for their strategy
+			String userStrategy = JOptionPane.showInputDialog("What was your strategy? (Leave blank if there wasn't one).");
+			// Add to the log
+			bidLog.log("Strategy");
+			bidLog.log(userStrategy);
 			
 			// Send log to the Auctioneer
 			ACLMessage msg = new ACLMessage(ACLMessage.INFORM);

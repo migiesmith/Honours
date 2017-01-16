@@ -44,6 +44,8 @@ import jade.lang.acl.MessageTemplate;
 public class MBCAuctioneer extends Auctioneer{
 
 	String results = "";
+	
+	int numMBCBidders = 0;
 
 	@Override
 	protected AuctionBehaviour getAuctionBehaviour() {
@@ -59,6 +61,9 @@ public class MBCAuctioneer extends Auctioneer{
 		auction = null;
 		bidders = new ArrayList<AID>();
 		renderOffset = new Rectangle2D.Double(0, 0, 0, 0);
+		
+		// Reset the number of MBC Bidders
+		numMBCBidders = 0;
 		
 		// Find agents to use and create more if needed
 		setupAgents(noBidders.get(currentProblem));
@@ -110,6 +115,9 @@ public class MBCAuctioneer extends Auctioneer{
 		if(biddersToCreate > 0){
 			createAgents(Bidder.class, biddersNeeded - biddersToCreate, biddersToCreate);
 		}
+		
+		numMBCBidders = searchResult.length;
+		
 	}
 	
 	@Override
@@ -259,11 +267,24 @@ public class MBCAuctioneer extends Auctioneer{
 			}
 		}
 		
-		protected void handleBidderLogs(){
-			ACLMessage bidLog = myAgent.receive(MessageTemplate.MatchConversationId("bidder-log"));
+		private int indexOfBidderInSolution(String bidderLocalName){
+			List<Route> solution = getAuctionBehaviour().getSolution();
+			for(int i = 0; i < solution.size(); i++){
+				System.out.println(solution.get(i).getRouteOwner());
+				if(solution.get(i).getRouteOwner() != null && solution.get(i).getRouteOwner().getLocalName().equals(bidderLocalName))
+					return i;
+			}
+			return -1;
+		}
+		
+		protected void handleBidderLogs(String timestamp){
 			List<List<String>> logs = new ArrayList<List<String>>();
-			List<String> bidders = new ArrayList<String>();
-			while(bidLog != null){
+			List<String> logBidders = new ArrayList<String>();
+			// Receive log messages
+			for(int i = 0; i < numMBCBidders; i++){				
+				// Wait for log
+				ACLMessage bidLog = myAgent.blockingReceive(MessageTemplate.MatchConversationId("bidder-log"));
+				
 				// Read the log from the message and store it in our log list
 				try {
 					ContentElement d = myAgent.getContentManager().extractContent(bidLog);
@@ -278,10 +299,7 @@ public class MBCAuctioneer extends Auctioneer{
 					e.printStackTrace();
 				}
 				
-				bidders.add(bidLog.getSender().getLocalName());
-				
-				// Check for another log
-				bidLog = myAgent.receive(MessageTemplate.MatchConversationId("bidder-log"));
+				logBidders.add(bidLog.getSender().getLocalName());
 			}
 			
 			// Get the length of the longest log
@@ -293,14 +311,11 @@ public class MBCAuctioneer extends Auctioneer{
 			}
 			
 			// Save the aggregated log data
-			// TODO
-
 			try {
-				// Get the current date and time for the log file name
-				String timestamp = new SimpleDateFormat("yyyy-MM-dd-hhmm'.csv'").format(new Date());
 				
 				String logPath = files.get(currentProblem);
-				logPath = logPath.substring(0, logPath.lastIndexOf("\\")+1) + "results\\log_" + logPath.substring(logPath.lastIndexOf("\\")+1, logPath.length() - 4) +"_"+ timestamp;
+				String problemName = logPath.substring(logPath.lastIndexOf("\\")+1, logPath.length() - 4);
+				logPath = logPath.substring(0, logPath.lastIndexOf("\\")+1) + "results\\"+ problemName +"\\log_" + problemName +"_"+ timestamp;
 				System.out.println(logPath);
 				File f = new File(logPath.substring(0, logPath.lastIndexOf("\\")));
 				f.mkdirs();
@@ -308,18 +323,21 @@ public class MBCAuctioneer extends Auctioneer{
 				f.createNewFile();
 				
 				FileWriter writer = new FileWriter(logPath);
-
-				
-				
-				for(int i = 0; i < bidders.size(); i++){
-					writer.append(","+ bidders.get(i)+ ",,");
+								
+				// Write out the bidder names who had logs
+				for(int i = 0; i < logBidders.size(); i++){
+					writer.append(","+ logBidders.get(i) +"(Route "+ indexOfBidderInSolution(logBidders.get(i)) +"),,");
 				}
 				writer.append("\n");
+				/*
+				// Write out the labels for the data
 				for(int i = 0; i < bidders.size(); i++){
 					writer.append("bid, cost, maxbid,");
 				}
 				writer.append("\n");
+				*/
 				
+				// Write out all of the log data
 				for(int i = 0; i < logLength; i++){
 					for(List<String> log : logs){
 						if(log.size() > i){
@@ -339,8 +357,11 @@ public class MBCAuctioneer extends Auctioneer{
 		@Override
 		protected boolean finishUp() {
 			calcRenderOffsets();
-
-			handleBidderLogs();
+			
+			// Get the current date and time for the result and log file name
+			String timestamp = new SimpleDateFormat("yyyy-MM-dd-hhmm'.csv'").format(new Date());
+			
+			handleBidderLogs(timestamp);
 			
 			// Sum up the total visits
 			int totalVisits = 0;
@@ -377,10 +398,12 @@ public class MBCAuctioneer extends Auctioneer{
 			
 			// Save the results
 			String resPath = files.get(currentProblem);
-			resPath = resPath.substring(0, resPath.lastIndexOf("\\")+1) + "results\\res_" + resPath.substring(resPath.lastIndexOf("\\")+1);
+			String problemName = resPath.substring(resPath.lastIndexOf("\\")+1, resPath.length() - 4);
+			resPath = resPath.substring(0, resPath.lastIndexOf("\\")+1) + "results\\"+ problemName +"\\res_" + problemName +"_"+ timestamp;
 			saveResults(resPath);
+			
 			String tranPath = files.get(currentProblem);
-			tranPath = tranPath.substring(0, tranPath.lastIndexOf("\\")+1) + "results\\trans_" + tranPath.substring(tranPath.lastIndexOf("\\")+1);
+			tranPath = tranPath.substring(0, tranPath.lastIndexOf("\\")+1) + "results\\"+ problemName +"\\trans_" + problemName +"_"+ timestamp;
 			saveTransactions(tranPath);
 			
 			if(currentProblem < files.size()){
