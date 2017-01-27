@@ -7,6 +7,8 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+import com.migie.smith.institution.MBCInstitution;
+
 import agent.auctionSolution.MapServer;
 import jade.core.Profile;
 import jade.core.ProfileImpl;
@@ -44,6 +46,10 @@ public class Main{
 		    
 		    AgentController mapServer = myContainer.createNewAgent("Map-Server", MapServer.class.getCanonicalName(), null);
 		    mapServer.start();
+
+		    AgentController institution = myContainer.createNewAgent("Institution", MBCInstitution.class.getCanonicalName(), null);
+		    institution.start();
+		    
 		} catch(StaleProxyException e) {
 		    e.printStackTrace();
 		}

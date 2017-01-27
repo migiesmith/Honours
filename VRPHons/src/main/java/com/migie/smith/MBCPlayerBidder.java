@@ -59,7 +59,7 @@ public class MBCPlayerBidder extends Bidder {
 		bidLog.log("bid, cost, maxbid,");
 		
 		// Register Agent with the DF Service so that the Auctioneer can contact it
-		registerWithDF();
+		this.registerWithDF();
 	}
 
 	protected void registerWithDF() {
@@ -75,7 +75,6 @@ public class MBCPlayerBidder extends Bidder {
 		} catch (FIPAException fe) {
 			fe.printStackTrace();
 		}
-
 	}
 
 	@Override

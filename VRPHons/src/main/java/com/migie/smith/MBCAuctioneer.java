@@ -6,7 +6,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -46,6 +45,8 @@ public class MBCAuctioneer extends Auctioneer{
 	String results = "";
 	
 	int numMBCBidders = 0;
+	
+	AID institution;
 
 	@Override
 	protected AuctionBehaviour getAuctionBehaviour() {
@@ -67,19 +68,36 @@ public class MBCAuctioneer extends Auctioneer{
 		
 		// Find agents to use and create more if needed
 		setupAgents(noBidders.get(currentProblem));
-		/*
-		// Create all agents including one player agent
-		createAgents(Bidder.class, 0, noBidders.get(currentProblem) - 1);
-		createAgents(MBCPlayerBidder.class, noBidders.get(currentProblem) - 1, 1);
-		*/		
+
+		getInstitution();
 		
 		// If there is already an auction behaviour, remove it
 		if(auction != null)
 			removeBehaviour(auction);
 		// Add a new auction behaviour
 		addBehaviour(getAuctionBehaviour());
+		
 	}
 
+	/**
+	 *  Search the DF Service for an institution agent
+	 */
+	protected void getInstitution(){
+		DFAgentDescription dfd = new DFAgentDescription();
+		ServiceDescription sd = new ServiceDescription();
+		sd.setType("institution");
+		dfd.addServices(sd);
+
+		DFAgentDescription[] searchResult = null;
+		try {
+			searchResult = DFService.search(this, dfd);
+			if(searchResult.length > 0)
+				institution = searchResult[0].getName();						
+		} catch (FIPAException e) {
+			e.printStackTrace();
+		}
+	}
+	
 	// Find agents to use and create more if needed
 	protected void setupAgents(int biddersNeeded) {
 		DFAgentDescription dfd = new DFAgentDescription();
@@ -170,8 +188,10 @@ public class MBCAuctioneer extends Auctioneer{
 		}
 				
 		@Override
-		protected boolean initialise() {
+		protected boolean initialise() {			
 			gui.canLoadFile(false);
+			sendAllVisitsToInstitution();
+			
 			sendAllVisits();
 			return true;
 		}
@@ -246,12 +266,15 @@ public class MBCAuctioneer extends Auctioneer{
 		}
 		
 		protected void sendAllVisits(){
+			// Update the institution with the available visits
+			updateInstitution();
+			
 			ACLMessage initialVisitsMsg = new ACLMessage(ACLMessage.INFORM);
+			initialVisitsMsg.setConversationId("available-visits");
 			// Add all of the receivers
 			for(AID bidder : bidders){
 				initialVisitsMsg.addReceiver(bidder);
 			}
-			initialVisitsMsg.setConversationId("available-visits");
 			
 			initialVisitsMsg.setLanguage(new SLCodec().getName());
 			initialVisitsMsg.setOntology(GiveOntology.getInstance().getName());
@@ -265,7 +288,111 @@ public class MBCAuctioneer extends Auctioneer{
 			}catch(OntologyException e){
 				e.printStackTrace();
 			}
+			
+			// Get the costing information from the institution
+			double[] costingInfo = getCostingFromInstitution();
+			
+			// Send the costing information to the bidders
+			ACLMessage costingMessage = new ACLMessage(ACLMessage.INFORM);
+			costingMessage.setConversationId("costing-update");
+			// Add all of the receivers
+			for(AID bidder : bidders){
+				costingMessage.addReceiver(bidder);
+			}
+			
+			costingMessage.setLanguage(new SLCodec().getName());
+			costingMessage.setOntology(GiveOntology.getInstance().getName());
+			try{
+				GiveObjectPredicate give = new GiveObjectPredicate();
+				give.setData(costingInfo);
+				myAgent.getContentManager().fillContent(costingMessage, give);
+				myAgent.send(costingMessage);
+			}catch(CodecException e){
+				e.printStackTrace();
+			}catch(OntologyException e){
+				e.printStackTrace();
+			}
+			
+			// Inform bidders of costing information TODO
+			
 		}
+		
+		/**
+		 * Sends all visits to the institution
+		 */
+		protected void sendAllVisitsToInstitution(){
+			// Create a message to send the visits
+			ACLMessage allVisits = new ACLMessage(ACLMessage.INFORM);
+			allVisits.setConversationId("all-visits");
+			allVisits.addReceiver(institution);
+			
+			// Add the list of visits and send
+			allVisits.setLanguage(new SLCodec().getName());
+			allVisits.setOntology(GiveOntology.getInstance().getName());
+			try{
+				GiveObjectPredicate give = new GiveObjectPredicate();
+				give.setData(getVisits());
+				myAgent.getContentManager().fillContent(allVisits, give);
+				myAgent.send(allVisits);
+			}catch(CodecException e){
+				e.printStackTrace();
+			}catch(OntologyException e){
+				e.printStackTrace();
+			}			
+		}
+		
+		/**
+		 * Update the institution with the visits that are still available
+		 */
+		protected void updateInstitution(){
+			// Create a message to send the available visits
+			ACLMessage updateVisits = new ACLMessage(ACLMessage.INFORM);
+			updateVisits.setConversationId("update-visits");
+			updateVisits.addReceiver(institution);
+			
+			// Add the list of visits and send
+			updateVisits.setLanguage(new SLCodec().getName());
+			updateVisits.setOntology(GiveOntology.getInstance().getName());
+			try{
+				GiveObjectPredicate give = new GiveObjectPredicate();
+				give.setData(getVisits());
+				myAgent.getContentManager().fillContent(updateVisits, give);
+				myAgent.send(updateVisits);
+			}catch(CodecException e){
+				e.printStackTrace();
+			}catch(OntologyException e){
+				e.printStackTrace();
+			}		
+			
+		}
+
+		protected double[] getCostingFromInstitution(){
+			// Send request for the costing information
+			ACLMessage request = new ACLMessage(ACLMessage.REQUEST);
+			request.setConversationId("costing-request");
+			request.addReceiver(institution);
+			myAgent.send(request);
+			
+			double[] costingInfo = null;
+			
+			ACLMessage response = myAgent.blockingReceive(MessageTemplate.MatchConversationId(request.getConversationId()));
+			try {
+				ContentElement d = myAgent.getContentManager().extractContent(response);
+				if (d instanceof GiveObjectPredicate) {
+					// Read out the visit data to our visits list
+					costingInfo = (double[]) ((GiveObjectPredicate) d).getData();
+				}
+			} catch (UngroundedException e) {
+				e.printStackTrace();
+			} catch (CodecException e) {
+				e.printStackTrace();
+			} catch (OntologyException e) {
+				e.printStackTrace();
+			}
+			
+			return costingInfo;
+		}
+		
 		
 		private int indexOfBidderInSolution(String bidderLocalName){
 			List<Route> solution = getAuctionBehaviour().getSolution();

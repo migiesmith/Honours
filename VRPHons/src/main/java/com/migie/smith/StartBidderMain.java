@@ -13,8 +13,16 @@ public class StartBidderMain {
 
 	public static void main(String[] args){
 
-		// Request the user for the IP and Port
-		String[] hostAddress = JOptionPane.showInputDialog("Enter IP:", "127.0.0.1:1099").split(":");
+		String userInput = "";
+		String[] hostAddress = new String[0];
+		while(hostAddress.length != 2){
+			// Request the user for the IP and Port
+			userInput = JOptionPane.showInputDialog("Enter IP:", "127.0.0.1:1099");
+			if(userInput == null)
+				System.exit(0);
+			
+			hostAddress = userInput.split(":");
+		}
 		
 		
 		String host = hostAddress[0];
