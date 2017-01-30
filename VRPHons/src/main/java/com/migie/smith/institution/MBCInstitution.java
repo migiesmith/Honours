@@ -3,6 +3,7 @@ package com.migie.smith.institution;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import agent.auctionSolution.JourneyInfoHelper;
 import agent.auctionSolution.dataObjects.VisitData;
@@ -101,8 +102,10 @@ public class MBCInstitution extends Agent {
 		protected void resetCostings(){
 			if(visits != null){
 				costings = new ArrayList<Double>();
-				for(int i = 0; i < costings.size(); i++){
-					costings.add(1.0d);
+				Random r = new Random();
+				// TODO REMOVE RANDOM
+				for(int i = 0; i < visits.size(); i++){
+					costings.add(Math.round((r.nextDouble() < 0.1d ? r.nextDouble() * 2.0d : 1.0d) * 100) / 100.0d);
 				}
 			}
 		}

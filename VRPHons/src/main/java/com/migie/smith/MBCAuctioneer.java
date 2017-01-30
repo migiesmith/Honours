@@ -290,7 +290,7 @@ public class MBCAuctioneer extends Auctioneer{
 			}
 			
 			// Get the costing information from the institution
-			double[] costingInfo = getCostingFromInstitution();
+			List<Double> costingInfo = getCostingFromInstitution();
 			
 			// Send the costing information to the bidders
 			ACLMessage costingMessage = new ACLMessage(ACLMessage.INFORM);
@@ -312,9 +312,6 @@ public class MBCAuctioneer extends Auctioneer{
 			}catch(OntologyException e){
 				e.printStackTrace();
 			}
-			
-			// Inform bidders of costing information TODO
-			
 		}
 		
 		/**
@@ -366,21 +363,21 @@ public class MBCAuctioneer extends Auctioneer{
 			
 		}
 
-		protected double[] getCostingFromInstitution(){
+		protected List<Double> getCostingFromInstitution(){
 			// Send request for the costing information
 			ACLMessage request = new ACLMessage(ACLMessage.REQUEST);
 			request.setConversationId("costing-request");
 			request.addReceiver(institution);
 			myAgent.send(request);
-			
-			double[] costingInfo = null;
+
+			List<Double> costingInfo = null;
 			
 			ACLMessage response = myAgent.blockingReceive(MessageTemplate.MatchConversationId(request.getConversationId()));
 			try {
 				ContentElement d = myAgent.getContentManager().extractContent(response);
 				if (d instanceof GiveObjectPredicate) {
 					// Read out the visit data to our visits list
-					costingInfo = (double[]) ((GiveObjectPredicate) d).getData();
+					costingInfo = (List<Double>) ((GiveObjectPredicate) d).getData();
 				}
 			} catch (UngroundedException e) {
 				e.printStackTrace();

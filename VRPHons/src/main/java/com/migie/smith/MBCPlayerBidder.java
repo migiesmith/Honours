@@ -41,6 +41,8 @@ public class MBCPlayerBidder extends Bidder {
 	protected List<VisitData> allVisits = null;
 	protected List<VisitData> availableVisits = null;
 
+	protected List<Double> costingInfo;
+	
 	protected Log bidLog;
 	
 	// The Accountant for this Bidder Agent
@@ -118,6 +120,7 @@ public class MBCPlayerBidder extends Bidder {
 		}
 		
 		protected void receiveAvailableVisits(){
+			// Receive an available visits list
 			ACLMessage allVisitsMsg = myAgent.receive(MessageTemplate.MatchConversationId("available-visits"));
 			if(allVisitsMsg != null){
 				try {
@@ -132,6 +135,24 @@ public class MBCPlayerBidder extends Bidder {
 							getXYCoords(availableVisits);
 							gui.setAvailableVisits(availableVisits);
 						}
+					}
+				} catch (UngroundedException e) {
+					e.printStackTrace();
+				} catch (CodecException e) {
+					e.printStackTrace();
+				} catch (OntologyException e) {
+					e.printStackTrace();
+				}
+			}
+			
+			// Get a list of costing values for each visit
+			ACLMessage costingUpdate = myAgent.receive(MessageTemplate.MatchConversationId("costing-update"));
+			if(costingUpdate != null){
+				try {
+					ContentElement d = myAgent.getContentManager().extractContent(costingUpdate);
+					if (d instanceof GiveObjectPredicate) {
+						costingInfo = (List<Double>) ((GiveObjectPredicate) d).getData();
+						gui.setCostingInfo(costingInfo);
 					}
 				} catch (UngroundedException e) {
 					e.printStackTrace();
@@ -444,7 +465,7 @@ public class MBCPlayerBidder extends Bidder {
 				v.transport = "Public Transport";
 				
 				// Update the accountant
-				accountant.updateBalance(nextMove.bid - costForAddingAt(v, addAt));
+				accountant.updateBalance(nextMove.bid  * costingInfo.get(visitPosInList(allVisits, v)) - costForAddingAt(v, addAt));
 				
 				route.visits.add(addAt + 1, v);
 				System.out.println("CARSHARE");
@@ -453,7 +474,7 @@ public class MBCPlayerBidder extends Bidder {
 				v.transport = determineTransportMode(v, addAt);
 				
 				// Update the accountant
-				accountant.updateBalance(nextMove.bid - Math.abs(costForAddingAt(v, addAt)));
+				accountant.updateBalance(nextMove.bid * costingInfo.get(visitPosInList(allVisits, v)) - Math.abs(costForAddingAt(v, addAt)));
 				
 				route.visits.add(addAt, v);
 			}			
@@ -466,6 +487,17 @@ public class MBCPlayerBidder extends Bidder {
 			
 		}
 
+		protected int visitPosInList(List<VisitData> visitList, VisitData visit){
+			int index = 0;
+			for(VisitData v : visitList){
+				if(v.name.equals(visit.name))
+					return index;
+				
+				index++;
+			}
+			return -1;
+		}
+		
 		@Override
 		public void resetBidder(){
 			super.resetBidder();
@@ -474,6 +506,9 @@ public class MBCPlayerBidder extends Bidder {
 			allVisits = null;
 			availableVisits = null;
 
+			// Reset the costing info
+			costingInfo = null;
+			
 			// Create a new log
 			bidLog = new Log();
 			bidLog.log("bid, cost, maxbid,");
