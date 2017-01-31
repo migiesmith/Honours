@@ -465,7 +465,7 @@ public class MBCPlayerBidder extends Bidder {
 				v.transport = "Public Transport";
 				
 				// Update the accountant
-				accountant.updateBalance(nextMove.bid  * costingInfo.get(visitPosInList(allVisits, v)) - costForAddingAt(v, addAt));
+				accountant.updateBalance((nextMove.bid  - costForAddingAt(v, addAt)) * costingInfo.get(visitPosInList(allVisits, v)));
 				
 				route.visits.add(addAt + 1, v);
 				System.out.println("CARSHARE");
@@ -474,7 +474,7 @@ public class MBCPlayerBidder extends Bidder {
 				v.transport = determineTransportMode(v, addAt);
 				
 				// Update the accountant
-				accountant.updateBalance(nextMove.bid * costingInfo.get(visitPosInList(allVisits, v)) - Math.abs(costForAddingAt(v, addAt)));
+				accountant.updateBalance((nextMove.bid - Math.abs(costForAddingAt(v, addAt))) * costingInfo.get(visitPosInList(allVisits, v)));
 				
 				route.visits.add(addAt, v);
 			}			

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Random;
 
 import agent.auctionSolution.JourneyInfoHelper;
+import agent.auctionSolution.dataObjects.Depot;
 import agent.auctionSolution.dataObjects.VisitData;
 import agent.auctionSolution.dataObjects.carShare.CarShare;
 import agent.auctionSolution.ontologies.GiveObjectPredicate;
@@ -32,6 +33,9 @@ public class MBCInstitution extends Agent {
 	List<VisitData> availableVisits;
 	List<Double> costings;
 	
+	MBCInstitutionGui gui;
+	
+	boolean isPaused = true;
 	
 	protected void setup(){
 		this.behaviour = new InstitutionBehaviour();
@@ -42,6 +46,24 @@ public class MBCInstitution extends Agent {
 		
 		// Register Agent with the DF Service so that the Auctioneer can contact it
 		this.registerWithDF();
+		
+		this.gui = new MBCInstitutionGui(this);
+	}
+	
+	public void setPaused(boolean isPaused){
+		this.isPaused = isPaused;
+	}
+	
+	public List<VisitData> getVisits(){
+		return visits;
+	}
+	
+	public List<VisitData> getAvailableVisits(){
+		return availableVisits;
+	}
+	
+	public List<Double> getCostingInformation(){
+		return costings;
 	}
 	
 	protected void registerWithDF() {
@@ -129,6 +151,13 @@ public class MBCInstitution extends Agent {
 		}
 		
 		protected void handlCostingRequest(ACLMessage msg){
+			while(isPaused){
+				try {
+					Thread.sleep(250);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
 			ACLMessage response = msg.createReply();
 			
 			// Add the costing array to the response
@@ -189,9 +218,19 @@ public class MBCInstitution extends Agent {
 			if(msg != null){
 				if(receiveVisits.match(msg)){
 					receiveVisits(msg);
+					if(gui != null){
+						// Update the visit data list
+						gui.updateSelections();
+						gui.repaint();
+					}
 					
 				}else if(visitUpdate.match(msg)){
 					updateAvailableVisits(msg);
+					if(gui != null){
+						// Update the visit data list
+						gui.updateSelections();
+						gui.repaint();
+					}
 					
 				}else if(costingRequest.match(msg)){
 					handlCostingRequest(msg);
