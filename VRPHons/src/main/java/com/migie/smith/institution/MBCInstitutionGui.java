@@ -70,8 +70,10 @@ public class MBCInstitutionGui extends JFrame {
 	public void updateSelections(){
 		// Add all available visits to the list model
 		DefaultListModel<String> listModel = new DefaultListModel<String>();
-		for(int i = 0; i < institution.getAvailableVisits().size(); i++){
-			listModel.add(i, institution.getAvailableVisits().get(i).name);
+		if(institution.getAvailableVisits() != null){
+			for(int i = 0; i < institution.getAvailableVisits().size(); i++){
+				listModel.add(i, institution.getAvailableVisits().get(i).name);
+			}
 		}
 		// Update the selected position
 		visitList.setModel(listModel);
