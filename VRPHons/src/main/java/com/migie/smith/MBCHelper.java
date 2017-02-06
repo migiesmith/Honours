@@ -17,6 +17,8 @@ import agent.auctionSolution.dataObjects.VisitData;
 
 public class MBCHelper {
 
+	private static int NODE_SIZE = 4;
+	
 	public static int visitPosInList(List<VisitData> visitList, VisitData visit){
 		int index = 0;
 		for(VisitData v : visitList){
@@ -43,14 +45,36 @@ public class MBCHelper {
 		return ((double)Math.min(renderPanel.getWidth()/2 * 0.9, renderPanel.getHeight()/2 * 0.9)) / ((double)Math.max(maxX, maxY));
 	}
 	
+	public static VisitData visitAtPosition(int mouseX, int mouseY, JPanel renderPanel, List<VisitData> allVisits, Depot depot, List<VisitData> availableVisits){
+		int xOffset = renderPanel.getWidth() / 2;
+		int yOffset = renderPanel.getHeight() / 2;
+
+		// Scale the route relative to all seen visits
+		double renderScale = 1.0d;
+		if(depot != null){
+			renderScale = calcRenderScale(renderPanel, depot, allVisits);		
+		}
+		
+		for(int i = 0; i < allVisits.size(); i++){
+			VisitData v = allVisits.get(i);
+			int visitX = xOffset + (int)((v.x - depot.x) * renderScale);
+			int visitY = yOffset + (int)((v.y - depot.y) * renderScale);
+			
+			if(Math.abs(mouseX - visitX) < NODE_SIZE*2 && Math.abs(mouseY - visitY) < NODE_SIZE*2 && visitPosInList(availableVisits, v) != -1){
+				return v;
+			}
+		}
+		
+		return null;
+	}
+	
 	public static void drawVisits(JPanel renderPanel, List<VisitData> allVisits, Depot depot, VisitData newVisit, List<VisitData> availableVisits, List<Double> costingInfo, List<VisitData> route, List<Integer> possibleLocations, int insertLocation){		
-		int nodeSize = 4;
+		//int nodeSize = NODE_SIZE;
 		
 		BufferedImage b = new BufferedImage(renderPanel.getWidth(), renderPanel.getHeight(), BufferedImage.TYPE_INT_RGB);
 
 		Graphics2D g2 = (Graphics2D) b.getGraphics();
 		FontMetrics fm = g2.getFontMetrics();
-		g2.drawRect(0, 0, 640, 480);
 		g2.setColor(Color.WHITE);
 		g2.fillRect(0, 0, renderPanel.getWidth(), renderPanel.getHeight());
 
@@ -87,16 +111,13 @@ public class MBCHelper {
 						// Draw costing Value indicator
 						if(costingInfo != null){
 							double costingVal = costingInfo.get(visitIndex);
+							int costingNodeSize = NODE_SIZE + 2;
 							if(costingVal > 1.0d){
 								g2.setColor(Color.blue);
-								nodeSize += 2;
-								g2.drawOval((int)((v.x - depot.x) * renderScale) - nodeSize/2, (int)((v.y - depot.y) * renderScale) - nodeSize/2, nodeSize, nodeSize);
-								nodeSize -= 2;
+								g2.drawOval((int)((v.x - depot.x) * renderScale) - costingNodeSize/2, (int)((v.y - depot.y) * renderScale) - costingNodeSize/2, costingNodeSize, costingNodeSize);
 							}else if(costingVal < 1.0d){
 								g2.setColor(Color.red);
-								nodeSize += 2;
-								g2.drawOval((int)((v.x - depot.x) * renderScale) - nodeSize/2, (int)((v.y - depot.y) * renderScale) - nodeSize/2, nodeSize, nodeSize);
-								nodeSize -= 2;
+								g2.drawOval((int)((v.x - depot.x) * renderScale) - costingNodeSize/2, (int)((v.y - depot.y) * renderScale) - costingNodeSize/2, costingNodeSize, costingNodeSize);
 							}
 						}
 						
@@ -104,9 +125,9 @@ public class MBCHelper {
 					}else{
 						g2.setColor(new Color(100, 100, 100, 50));
 					}
-					g2.fillOval((int)((v.x - depot.x) * renderScale) - nodeSize/2, (int)((v.y - depot.y) * renderScale) - nodeSize/2, nodeSize, nodeSize);
+					g2.fillOval((int)((v.x - depot.x) * renderScale) - NODE_SIZE/2, (int)((v.y - depot.y) * renderScale) - NODE_SIZE/2, NODE_SIZE, NODE_SIZE);
 					g2.setColor(new Color(0, 0, 0, 100));
-					g2.drawOval((int)((v.x - depot.x) * renderScale) - nodeSize/2, (int)((v.y - depot.y) * renderScale) - nodeSize/2, nodeSize, nodeSize);			
+					g2.drawOval((int)((v.x - depot.x) * renderScale) - NODE_SIZE/2, (int)((v.y - depot.y) * renderScale) - NODE_SIZE/2, NODE_SIZE, NODE_SIZE);			
 	
 					
 					visitIndex++;
@@ -136,9 +157,9 @@ public class MBCHelper {
 							);
 						
 						g2.setColor(Color.yellow);
-						g2.fillOval((int)((v.x - depot.x) * renderScale) - nodeSize/2, (int)((v.y - depot.y) * renderScale) - nodeSize/2, nodeSize, nodeSize);
+						g2.fillOval((int)((v.x - depot.x) * renderScale) - NODE_SIZE/2, (int)((v.y - depot.y) * renderScale) - NODE_SIZE/2, NODE_SIZE, NODE_SIZE);
 						g2.setColor(Color.black);
-						g2.drawOval((int)((v.x - depot.x) * renderScale) - nodeSize/2, (int)((v.y - depot.y) * renderScale) - nodeSize/2, nodeSize, nodeSize);
+						g2.drawOval((int)((v.x - depot.x) * renderScale) - NODE_SIZE/2, (int)((v.y - depot.y) * renderScale) - NODE_SIZE/2, NODE_SIZE, NODE_SIZE);
 						
 						lastNode = v;
 					}
@@ -160,11 +181,11 @@ public class MBCHelper {
 				if(newVisit != null){
 					// Draw the new node
 					g2.setColor(Color.green);
-					g2.fillOval((int) ((newVisit.x - depot.x) * renderScale) - nodeSize / 2,
-							(int) ((newVisit.y - depot.y) * renderScale) - nodeSize / 2, nodeSize, nodeSize);
+					g2.fillOval((int) ((newVisit.x - depot.x) * renderScale) - NODE_SIZE / 2,
+							(int) ((newVisit.y - depot.y) * renderScale) - NODE_SIZE / 2, NODE_SIZE, NODE_SIZE);
 					g2.setColor(Color.black);
-					g2.drawOval((int) ((newVisit.x - depot.x) * renderScale) - nodeSize / 2,
-							(int) ((newVisit.y - depot.y) * renderScale) - nodeSize / 2, nodeSize, nodeSize);
+					g2.drawOval((int) ((newVisit.x - depot.x) * renderScale) - NODE_SIZE / 2,
+							(int) ((newVisit.y - depot.y) * renderScale) - NODE_SIZE / 2, NODE_SIZE, NODE_SIZE);
 			
 					// Draw possible connections to the new node
 					if(possibleLocations != null){

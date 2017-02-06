@@ -95,7 +95,20 @@ public class MBCInstitutionGui extends JFrame {
 		visitPanel.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
-				
+				List<VisitData> allVisits = institution.getVisits();
+				if(allVisits != null){					
+					if(selectedVisit == null)
+						selectedVisit = allVisits.get(0);
+					
+					Depot depot = new Depot();
+					depot.x = selectedVisit.x;
+					depot.y = selectedVisit.y;
+					VisitData newSelection = MBCHelper.visitAtPosition(e.getX(), e.getY(), visitPanel, allVisits, depot, institution.getAvailableVisits());
+					if(newSelection != null){
+						selectedVisit = allVisits.get(MBCHelper.visitPosInList(allVisits, newSelection));
+						repaint();
+					}
+				}
 			}
 		});
 		
