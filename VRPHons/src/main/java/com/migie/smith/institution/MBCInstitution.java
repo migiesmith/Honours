@@ -125,9 +125,10 @@ public class MBCInstitution extends Agent {
 			if(visits != null){
 				costings = new ArrayList<Double>();
 				Random r = new Random();
-				// TODO REMOVE RANDOM
 				for(int i = 0; i < visits.size(); i++){
-					costings.add(Math.round((r.nextDouble() < 0.1d ? r.nextDouble() * 2.0d : 1.0d) * 100) / 100.0d);
+					costings.add(1.0d);
+					// TODO REMOVE RANDOM
+					//costings.add(Math.round((r.nextDouble() < 0.1d ? r.nextDouble() * 2.0d : 1.0d) * 100) / 100.0d);
 				}
 			}
 		}

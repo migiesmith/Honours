@@ -299,19 +299,24 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 			}			
 		});
 		
+		JLabel lblTip = new JLabel("* Red outline on node = Reduction in reward, Blue on node = Increase in reward");
+		lblTip.setHorizontalAlignment(SwingConstants.CENTER);
+		
 		GroupLayout gl_contentPane = new GroupLayout(contentPane);
 		gl_contentPane.setHorizontalGroup(
 			gl_contentPane.createParallelGroup(Alignment.LEADING)
-				.addGroup(gl_contentPane.createSequentialGroup()
+				.addGroup(Alignment.TRAILING, gl_contentPane.createSequentialGroup()
 					.addContainerGap()
 					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-						.addComponent(lblGameState, GroupLayout.DEFAULT_SIZE, 408, Short.MAX_VALUE)
 						.addComponent(lblNewLabel, GroupLayout.DEFAULT_SIZE, 408, Short.MAX_VALUE)
-						.addGroup(gl_contentPane.createSequentialGroup()
-							.addComponent(turnPanel, GroupLayout.DEFAULT_SIZE, 403, Short.MAX_VALUE)
+						.addGroup(Alignment.TRAILING, gl_contentPane.createSequentialGroup()
+							.addGroup(gl_contentPane.createParallelGroup(Alignment.TRAILING)
+								.addComponent(lblTip, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, 403, Short.MAX_VALUE)
+								.addComponent(turnPanel, GroupLayout.DEFAULT_SIZE, 403, Short.MAX_VALUE))
 							.addGap(5)))
 					.addPreferredGap(ComponentPlacement.UNRELATED)
 					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
+						.addComponent(lblGameState, Alignment.TRAILING, GroupLayout.DEFAULT_SIZE, 246, Short.MAX_VALUE)
 						.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
 							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
 								.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
@@ -387,7 +392,9 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 							.addGap(5)
 							.addComponent(turnPanel, GroupLayout.DEFAULT_SIZE, 412, Short.MAX_VALUE)))
 					.addPreferredGap(ComponentPlacement.RELATED)
-					.addComponent(lblGameState))
+					.addGroup(gl_contentPane.createParallelGroup(Alignment.BASELINE)
+						.addComponent(lblGameState)
+						.addComponent(lblTip)))
 		);
 		
 		lsInsertLocation = new JList<Integer>();

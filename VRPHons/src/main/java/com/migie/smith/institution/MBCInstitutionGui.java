@@ -139,6 +139,7 @@ public class MBCInstitutionGui extends JFrame {
 		});
 		
 		btnEdit = new JButton("Edit");
+		btnEdit.setEnabled(false);
 		btnEdit.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				btnDone.setEnabled(true);
