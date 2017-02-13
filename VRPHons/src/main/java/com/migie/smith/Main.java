@@ -1,11 +1,8 @@
 package com.migie.smith;
 
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
+import javax.swing.JDialog;
+import javax.swing.JOptionPane;
 
 import com.migie.smith.institution.MBCInstitution;
 
@@ -21,9 +18,8 @@ public class Main{
 	
     public static void main(String[] args){	
     	
-    	String host = getIP();
+    	String host = MBCHelper.getIP();
     	String port = "1099";
-    	System.out.println(host +":"+ port);
     	
 		Runtime myRuntime = Runtime.instance();
 
@@ -49,26 +45,20 @@ public class Main{
 
 		    AgentController institution = myContainer.createNewAgent("Institution", MBCInstitution.class.getCanonicalName(), null);
 		    institution.start();
+
+	    	System.out.println(host +":"+ port);
+	    	
+		    JOptionPane joPane = new JOptionPane();
+		    joPane.setMessage("Bidders can connect via "+ host +":"+ port);
+		    joPane.setOptions(new Object[]{"Confirm"});
+		    JDialog ipPrompt = joPane.createDialog("IP prompt");
+		    ipPrompt.setAlwaysOnTop(false);
+		    ipPrompt.setVisible(true);
+		    ipPrompt.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 		    
 		} catch(StaleProxyException e) {
 		    e.printStackTrace();
 		}
         
-    }
-    
-    public static String getIP(){
-    	String ip = "";
-		try {
-			URL whatismyip = new URL("http://checkip.amazonaws.com");
-			BufferedReader in = new BufferedReader(new InputStreamReader(
-    	                whatismyip.openStream()));
-
-	    	ip = in.readLine(); // Read the ip address
-		} catch (MalformedURLException e1) {
-			e1.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return ip;
     }
 }

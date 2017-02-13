@@ -83,6 +83,7 @@ public class MBCInstitutionGui extends JFrame {
 	 * Create the frame.
 	 */
 	public MBCInstitutionGui(final MBCInstitution institution) {
+		setTitle("Institution");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 640, 480);
 		contentPane = new JPanel();
@@ -92,6 +93,7 @@ public class MBCInstitutionGui extends JFrame {
 		this.institution = institution;
 		
 		visitPanel = new JPanel();
+		visitPanel.setToolTipText("View of all visits. Greyed out visits have been won and cannot be modified. Red outline indicates a multiplier between 0 and 1. Blue outline indicates a multiplier greater than 1");
 		visitPanel.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
@@ -106,6 +108,7 @@ public class MBCInstitutionGui extends JFrame {
 					VisitData newSelection = MBCHelper.visitAtPosition(e.getX(), e.getY(), visitPanel, allVisits, depot, institution.getAvailableVisits());
 					if(newSelection != null){
 						selectedVisit = allVisits.get(MBCHelper.visitPosInList(allVisits, newSelection));
+						spinnerMultiplier.setValue(institution.getCostingInformation().get(MBCHelper.visitPosInList(institution.getVisits(), selectedVisit)));
 						repaint();
 					}
 				}
@@ -113,10 +116,13 @@ public class MBCInstitutionGui extends JFrame {
 		});
 		
 		JLabel lblVisitList = new JLabel("Visits:");
+		lblVisitList.setToolTipText("All visits that are yet to be bidded on. Ordered in terms of their occurence");
 		
 		JLabel lblMultiplier = new JLabel("Multiplier:");
+		lblMultiplier.setToolTipText("The multiplier that will be applied to the profit of the winner");
 		
 		spinnerMultiplier = new JSpinner();
+		spinnerMultiplier.setToolTipText("The multiplier that will be applied to the profit of the winner");
 		spinnerMultiplier.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent e) {
 				if(selectedVisit != null)
@@ -129,6 +135,7 @@ public class MBCInstitutionGui extends JFrame {
 		JScrollPane scrollPane = new JScrollPane();
 		
 		btnDone = new JButton("Done For Now");
+		btnDone.setToolTipText("Stop editting the multipliers and allow the auction to resume");
 		btnDone.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				btnDone.setEnabled(false);
@@ -139,6 +146,7 @@ public class MBCInstitutionGui extends JFrame {
 		});
 		
 		btnEdit = new JButton("Edit");
+		btnEdit.setToolTipText("Pause the auction and modify the multiplier of visits");
 		btnEdit.setEnabled(false);
 		btnEdit.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -185,6 +193,7 @@ public class MBCInstitutionGui extends JFrame {
 		);
 		
 		visitList = new JList<String>();
+		visitList.setToolTipText("All visits that are yet to be bidded on. Ordered in terms of their occurence");
 		visitList.addListSelectionListener(new ListSelectionListener() {
 			public void valueChanged(ListSelectionEvent e) {
 				if(visitList.getSelectedIndex() != -1){

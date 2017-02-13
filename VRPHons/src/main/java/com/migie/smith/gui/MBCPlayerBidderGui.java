@@ -223,8 +223,10 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 	 * Create the frame.
 	 */
 	public MBCPlayerBidderGui(final MBCPlayerBidder player) {
+		setTitle("Player Bidder");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, 700, 500);
+		setBounds(100, 100, 720, 500);
+		setMinimumSize(this.getBounds().getSize());
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
@@ -237,8 +239,10 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 		lblNewLabel.setHorizontalAlignment(SwingConstants.CENTER);
 		
 		turnPanel = new JPanel();
+		turnPanel.setToolTipText("<html>\r\nAll visits, greyed out visits have been won already and yellow visits are yet to be bidded on. \r\n<br>\r\nRed lines show the route, grey lines show possible connections to the new route, and the\r\n<br>\r\ngreen line shows the selected possible connection.\r\n</html>");
 		
 		JButton btnBid = new JButton("Bid");
+		btnBid.setToolTipText("Confirm your bid value and insert location. If the bid is won, the Net value will be added to the balance and the visit will be inserted into the route.");
 		btnBid.setEnabled(false);
 		btnBid.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -250,6 +254,7 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 		});
 		
 		JButton btnReject = new JButton("Reject");
+		btnReject.setToolTipText("Refuse to bid for the visit and wait for the next one. This causes no changes to your route.");
 		btnReject.setEnabled(false);
 		btnReject.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -261,6 +266,7 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 		JScrollPane scrollPane = new JScrollPane();
 		
 		txtInformation = new JTextPane();
+		txtInformation.setToolTipText("Information about previous turns");
 		scrollPane.setViewportView(txtInformation);
 		
 		lblGameState = new JLabel(" ");
@@ -268,26 +274,25 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 		scrollPane_1 = new JScrollPane();
 		
 		timingPanel = new JPanel();
+		timingPanel.setToolTipText("Visual representation of the route's time frame. Orange = travelling, Green = visit, Grey = unused.");
 		
-		lblBalance = new JLabel("Balance:");
-		
-		lblTimeFrame = new JLabel("Time Frame:");
-		
-		lblLog = new JLabel("Log:");
-		
-		lblAddAt = new JLabel("Add At:");
-		lblAddAt.setHorizontalAlignment(SwingConstants.CENTER);
-		
-		lblSuggestedBid = new JLabel("Cost:");
-		
-		lblNetMultiplier = new JLabel("Net Multiplier:");
-		
-		lblMaxBid = new JLabel("Max Bid:");
-		
-		lblNet = new JLabel("Net:");
-		
-		JLabel lblBid = new JLabel("Bid:");
-		
+
+		lsInsertLocation = new JList<Integer>();
+		lsInsertLocation.setToolTipText("<html>\r\nThe position within the route that the new visit should be placed at should it be won.\r\n<br>\r\nLook at the visit graphic to the left to see where it will be placed\r\n</html>");
+		lsInsertLocation.addListSelectionListener(new ListSelectionListener() {
+			public void valueChanged(ListSelectionEvent e) {
+				repaint();
+				if(lsInsertLocation.getSelectedValue() != null){
+					double suggestedBid = Math.abs(player.getCost(newVisit, (Integer)lsInsertLocation.getSelectedValue()));
+					lblSuggestedBid.setText("Cost: " + Math.round(suggestedBid * 100) / 100.0d);
+					lblMaxBid.setText("Max Bid: " + Math.round(player.getMaxBid(newVisit) * 100) / 100.0d);
+
+					currentBidSpinner.setValue(suggestedBid);
+					
+				}
+			}
+		});
+
 		currentBidSpinner = new JSpinner();
 		currentBidSpinner.setModel(new SpinnerNumberModel(0.0, 0.0, 0.0, 0.1));
 		currentBidSpinner.addChangeListener(new ChangeListener(){
@@ -298,6 +303,36 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 				lblNet.setText("Net: " + Math.round((Double.valueOf(currentBidSpinner.getValue().toString()) - suggestedBid) * costingMult * 100) / 100.0d);
 			}			
 		});
+		currentBidSpinner.setToolTipText("The value that will be used as the bid.");
+		
+		lblBalance = new JLabel("Balance:");
+		lblBalance.setToolTipText("The overall profit or loss of this route.");
+		
+		lblTimeFrame = new JLabel("Time Frame:");
+		lblTimeFrame.setToolTipText(timingPanel.getToolTipText());
+		
+		lblLog = new JLabel("Log:");
+		lblLog.setToolTipText(txtInformation.getToolTipText());
+		
+		lblAddAt = new JLabel("Add At:");
+		lblAddAt.setHorizontalAlignment(SwingConstants.CENTER);
+		lblAddAt.setToolTipText(lsInsertLocation.getToolTipText());
+		
+		lblSuggestedBid = new JLabel("Cost:");
+		lblSuggestedBid.setToolTipText("How much it will cost to insert the visit at the selected location in the route.");
+		
+		lblNetMultiplier = new JLabel("Net Multiplier:");
+		lblNetMultiplier.setToolTipText("This value is set by the institution and modifies the Net value. See Net's tooltip for the usage.");
+		
+		lblMaxBid = new JLabel("Max Bid:");
+		lblMaxBid.setToolTipText("The maximum value that can be used for the bid. The auctioneer sets this value.");
+		
+		lblNet = new JLabel("Net:");
+		lblNet.setToolTipText("The profit or loss that will occur as a result of winning the bid. Net = (bid - cost) * multiplier");
+		
+		JLabel lblBid = new JLabel("Bid:");
+		lblBid.setToolTipText(currentBidSpinner.getToolTipText());
+		
 		
 		JLabel lblTip = new JLabel("* Red outline on node = Reduction in reward, Blue on node = Increase in reward");
 		lblTip.setHorizontalAlignment(SwingConstants.CENTER);
@@ -397,20 +432,6 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 						.addComponent(lblTip)))
 		);
 		
-		lsInsertLocation = new JList<Integer>();
-		lsInsertLocation.addListSelectionListener(new ListSelectionListener() {
-			public void valueChanged(ListSelectionEvent e) {
-				repaint();
-				if(lsInsertLocation.getSelectedValue() != null){
-					double suggestedBid = Math.abs(player.getCost(newVisit, (Integer)lsInsertLocation.getSelectedValue()));
-					lblSuggestedBid.setText("Cost: " + Math.round(suggestedBid * 100) / 100.0d);
-					lblMaxBid.setText("Max Bid: " + Math.round(player.getMaxBid(newVisit) * 100) / 100.0d);
-
-					currentBidSpinner.setValue(suggestedBid);
-					
-				}
-			}
-		});
 		
 		
 		

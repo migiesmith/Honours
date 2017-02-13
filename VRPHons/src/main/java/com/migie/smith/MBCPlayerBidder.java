@@ -538,7 +538,7 @@ public class MBCPlayerBidder extends Bidder {
 			String userStrategy = JOptionPane.showInputDialog("What was your strategy? (Leave blank if there wasn't one).");
 			// Add to the log
 			bidLog.log("Strategy");
-			bidLog.log(userStrategy);
+			bidLog.log(userStrategy != null ? userStrategy : "");
 			
 			// Send log to the Auctioneer
 			ACLMessage msg = new ACLMessage(ACLMessage.INFORM);

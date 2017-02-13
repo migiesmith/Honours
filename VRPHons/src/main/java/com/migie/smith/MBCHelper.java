@@ -6,6 +6,11 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Iterator;
 import java.util.List;
 
@@ -241,4 +246,19 @@ public class MBCHelper {
 		
 	}
 	
+    public static String getIP(){
+    	String ip = "";
+		try {
+			URL whatismyip = new URL("http://checkip.amazonaws.com");
+			BufferedReader in = new BufferedReader(new InputStreamReader(
+    	                whatismyip.openStream()));
+
+	    	ip = in.readLine(); // Read the ip address
+		} catch (MalformedURLException e1) {
+			e1.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return ip;
+    }	
 }
