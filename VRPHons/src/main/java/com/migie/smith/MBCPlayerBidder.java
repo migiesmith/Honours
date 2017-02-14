@@ -21,10 +21,12 @@ import agent.auctionSolution.dataObjects.carShare.CarShare;
 import agent.auctionSolution.dataObjects.carShare.CarShareRequest;
 import agent.auctionSolution.dataObjects.carShare.CarShareResult;
 import agent.auctionSolution.ontologies.GiveObjectPredicate;
+import agent.auctionSolution.ontologies.GiveOntology;
 import jade.content.ContentElement;
 import jade.content.lang.Codec.CodecException;
 import jade.content.onto.OntologyException;
 import jade.content.onto.UngroundedException;
+import jade.content.schema.ConceptSchema;
 import jade.core.AID;
 import jade.domain.DFService;
 import jade.domain.FIPAException;
@@ -44,6 +46,9 @@ public class MBCPlayerBidder extends Bidder {
 	protected List<Double> costingInfo;
 	
 	protected Log bidLog;
+	
+	protected List<MBCAccountant> bidderBalances = null;
+	
 	
 	// The Accountant for this Bidder Agent
 	protected MBCAccountant accountant = new MBCAccountant();
@@ -105,6 +110,13 @@ public class MBCPlayerBidder extends Bidder {
 		return maxBidForVisit;
 	}
 	
+	public List<MBCAccountant> getBalances(){
+		return this.bidderBalances;
+	}
+	
+	public double getBalance(){
+		return this.accountant.getBalance();
+	}
 	
 	private class MBCBidderBehaviour extends BidderBehaviour{
 
@@ -114,6 +126,9 @@ public class MBCPlayerBidder extends Bidder {
 
 		@Override
 		protected boolean initialise() {
+			// Register MBCGiveOntology
+			myAgent.getContentManager().registerOntology(MBCGiveOntology.getInstance());
+			
 			setJourneyInfoHelper(new JourneyInfoHelper());
 			receiveAvailableVisits();
 			return true;
@@ -196,6 +211,22 @@ public class MBCPlayerBidder extends Bidder {
 				}
 			}
 
+			// Update the balance of every bidder
+			ACLMessage balanceInform = myAgent.blockingReceive(MessageTemplate.MatchConversationId("all-balance-inform"));
+			try {
+				ContentElement d = myAgent.getContentManager().extractContent(balanceInform);
+				if (d instanceof GiveObjectPredicate) {
+					// Read out the visit data to our visits list
+					bidderBalances = (List<MBCAccountant>) ((GiveObjectPredicate) d).getData();
+				}
+			} catch (UngroundedException e) {
+				e.printStackTrace();
+			} catch (CodecException e) {
+				e.printStackTrace();
+			} catch (OntologyException e) {
+				e.printStackTrace();
+			}
+			
 			// Update the gui with the balance
 			if(gui != null){
 				gui.setBalance(accountant.getBalance());			
@@ -479,6 +510,13 @@ public class MBCPlayerBidder extends Bidder {
 				route.visits.add(addAt, v);
 			}			
 
+			// Inform the auctioneer of our new balance
+			ACLMessage balanceInform = new ACLMessage(ACLMessage.INFORM);
+			balanceInform.setConversationId("balance-inform");
+			balanceInform.addReceiver(this.auctioneerAID);
+			balanceInform.setContent(String.valueOf(accountant.getBalance()));
+			myAgent.send(balanceInform);
+			
 			if(gui != null){
 				// Inform of won bid and show gain / loss
 				double diff = Math.abs(oldBalance - accountant.getBalance());

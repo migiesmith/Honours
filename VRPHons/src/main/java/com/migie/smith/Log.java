@@ -5,10 +5,10 @@ import java.util.List;
 
 public class Log {
 
-	protected List logData;
+	protected List<String> logData;
 	
 	Log(){
-		logData = new ArrayList();
+		logData = new ArrayList<String>();
 	}
 	
 	// Get the contents of the log

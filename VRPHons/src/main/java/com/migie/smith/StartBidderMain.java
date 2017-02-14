@@ -1,5 +1,7 @@
 package com.migie.smith;
 
+import java.util.Random;
+
 import javax.swing.JOptionPane;
 
 import jade.core.Profile;
@@ -22,6 +24,14 @@ public class StartBidderMain {
 				System.exit(0);
 			
 			hostAddress = userInput.split(":");
+		}
+		
+		String bidderName = "";
+		while(bidderName.equals("")){
+			// Request the user for the IP and Port
+			bidderName = JOptionPane.showInputDialog("Enter a name:", "Bidder"+ (new Random().nextInt(10000)));
+			if(userInput == null)
+				System.exit(0);
 		}
 		
 		
@@ -47,7 +57,7 @@ public class StartBidderMain {
 		    //rma.start();
 		    
 			
-		    AgentController bidder = myContainer.createNewAgent("Bidder"+port, MBCPlayerBidder.class.getCanonicalName(), new Object[]{true});
+		    AgentController bidder = myContainer.createNewAgent(bidderName, MBCPlayerBidder.class.getCanonicalName(), new Object[]{true});
 		    bidder.start();
 
 		} catch(StaleProxyException e) {

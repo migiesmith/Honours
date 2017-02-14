@@ -30,8 +30,12 @@ import agent.auctionSolution.ontologies.GiveOntology;
 import jade.content.ContentElement;
 import jade.content.lang.Codec.CodecException;
 import jade.content.lang.sl.SLCodec;
+import jade.content.onto.BasicOntology;
 import jade.content.onto.OntologyException;
 import jade.content.onto.UngroundedException;
+import jade.content.schema.ConceptSchema;
+import jade.content.schema.PrimitiveSchema;
+import jade.content.schema.TermSchema;
 import jade.core.AID;
 import jade.domain.DFService;
 import jade.domain.FIPAException;
@@ -43,11 +47,13 @@ import jade.lang.acl.MessageTemplate;
 public class MBCAuctioneer extends Auctioneer{
 
 	String results = "";
-	
-	int numMBCBidders = 0;
+
+	List<AID> mbcBidders = new ArrayList<AID>();
 	
 	AID institution;
 
+	List<MBCAccountant> bidderBalances = null;
+	
 	@Override
 	protected AuctionBehaviour getAuctionBehaviour() {
 		if(auction == null && problem != null){
@@ -63,8 +69,8 @@ public class MBCAuctioneer extends Auctioneer{
 		bidders = new ArrayList<AID>();
 		renderOffset = new Rectangle2D.Double(0, 0, 0, 0);
 		
-		// Reset the number of MBC Bidders
-		numMBCBidders = 0;
+		// Reset the list of MBCBidders
+		mbcBidders = new ArrayList<AID>();
 		
 		// Find agents to use and create more if needed
 		setupAgents(noBidders.get(currentProblem));
@@ -116,6 +122,7 @@ public class MBCAuctioneer extends Auctioneer{
 			for(int i = 0; i < searchResult.length; i++){
 				System.out.println(" |" + searchResult[i].getName().getLocalName());
 				bidders.add(searchResult[i].getName());
+				mbcBidders.add(searchResult[i].getName());
 				bidderArgs.addReceiver(searchResult[i].getName());
 			}
 			// Return limit, minimiseFactor, transportMode, isCarShareEnabled
@@ -134,7 +141,13 @@ public class MBCAuctioneer extends Auctioneer{
 			createAgents(Bidder.class, biddersNeeded - biddersToCreate, biddersToCreate);
 		}
 		
-		numMBCBidders = searchResult.length;
+		bidderBalances = new ArrayList<MBCAccountant>();
+		for(AID bidder : bidders){
+			MBCAccountant acc = new MBCAccountant();
+			acc.setBalance(0.0d);
+			acc.setBidder(bidder);
+			bidderBalances.add(acc);
+		}
 		
 	}
 	
@@ -184,11 +197,13 @@ public class MBCAuctioneer extends Auctioneer{
 
 		Auction(List<VisitData> visits, List<AID> bidders, Depot depot) {
 			super(visits, bidders, depot);
-			
 		}
 				
 		@Override
-		protected boolean initialise() {			
+		protected boolean initialise() {
+			// Register MBCGiveOntology
+			myAgent.getContentManager().registerOntology(MBCGiveOntology.getInstance());
+			
 			gui.canLoadFile(false);
 			sendAllVisitsToInstitution();
 			
@@ -203,7 +218,10 @@ public class MBCAuctioneer extends Auctioneer{
 		}
 		
 		@Override
-		protected boolean auctionVisit(){
+		protected boolean auctionVisit(){	
+			
+			informBiddersOfBalances();
+			
 			// Call the super function, we only want to add to it
 			boolean canAuctionVisit = super.auctionVisit();
 			
@@ -233,6 +251,44 @@ public class MBCAuctioneer extends Auctioneer{
 			}
 			
 			return canAuctionVisit;
+		}
+		
+		protected void informBiddersOfBalances(){
+			// Check for winner messages
+			ACLMessage winnerBalance = myAgent.receive(MessageTemplate.MatchConversationId("balance-inform"));
+			while(winnerBalance != null){
+				// Find the index of the winner
+				int winnerIdx = 0;
+				for(int idx = 1; idx < bidderBalances.size(); idx++){
+					if(bidderBalances.get(idx).bidder.equals(winnerBalance.getSender())){
+						winnerIdx = idx;
+						break;
+					}
+				}
+				// Update the winners balance
+				bidderBalances.get(winnerIdx).setBalance(Double.valueOf(winnerBalance.getContent()));
+				// Check for another message
+				winnerBalance = myAgent.receive(MessageTemplate.MatchConversationId("balance-inform"));
+			}
+			
+			// Send a message to all bidders about the balance of each bidder
+			ACLMessage informBalanceAll = new ACLMessage(ACLMessage.INFORM);
+			informBalanceAll.setLanguage(new SLCodec().getName());		
+			informBalanceAll.setOntology(MBCGiveOntology.getInstance().getName());
+			informBalanceAll.setConversationId("all-balance-inform");
+			for(AID bidder : mbcBidders){
+				informBalanceAll.addReceiver(bidder);
+			}
+			try{
+				GiveObjectPredicate give = new GiveObjectPredicate();
+				give.setData(bidderBalances);
+				myAgent.getContentManager().fillContent(informBalanceAll, give);
+				myAgent.send(informBalanceAll);
+			}catch(CodecException e){
+				e.printStackTrace();
+			}catch(OntologyException e){
+				e.printStackTrace();
+			}
 		}
 		
 		protected double getMaxBid(VisitData v){
@@ -405,7 +461,7 @@ public class MBCAuctioneer extends Auctioneer{
 			List<List<String>> logs = new ArrayList<List<String>>();
 			List<String> logBidders = new ArrayList<String>();
 			// Receive log messages
-			for(int i = 0; i < numMBCBidders; i++){				
+			for(int i = 0; i < mbcBidders.size(); i++){				
 				// Wait for log
 				ACLMessage bidLog = myAgent.blockingReceive(MessageTemplate.MatchConversationId("bidder-log"));
 				
