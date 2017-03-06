@@ -27,45 +27,72 @@ import jade.lang.acl.MessageTemplate;
 
 public class MBCInstitution extends Agent {
 
+	// The behaviour of the insitution
 	InstitutionBehaviour behaviour;
 	
+	// List containing all visits
 	List<VisitData> visits;
+	// List containing only available visits
 	List<VisitData> availableVisits;
+	// Cositng values for each visit
 	List<Double> costings;
 	
+	// The GUI for this institution
 	MBCInstitutionGui gui;
 	
+	// Whether the institution should pause the rest of the agents
 	boolean isPaused = true;
 	
+	/**
+	 * Initialise essential variables
+	 */
 	protected void setup(){
+		// Set the behaviour
 		this.behaviour = new InstitutionBehaviour();
 		this.addBehaviour(this.behaviour);
 		
+		// Register the required ontologies
 		this.getContentManager().registerLanguage(new SLCodec());
 		this.getContentManager().registerOntology(GiveOntology.getInstance());
 		
 		// Register Agent with the DF Service so that the Auctioneer can contact it
 		this.registerWithDF();
 		
+		// Start the GUI
 		this.gui = new MBCInstitutionGui(this);
 	}
 	
+	/**
+	 * @param isPaused True to pause other agents, false to unpause
+	 */
 	public void setPaused(boolean isPaused){
 		this.isPaused = isPaused;
 	}
 	
+	/**
+	 * @return Reference to list of all visits
+	 */
 	public List<VisitData> getVisits(){
 		return visits;
 	}
 	
+	/**
+	 * @return References to list of available visits
+	 */
 	public List<VisitData> getAvailableVisits(){
 		return availableVisits;
 	}
 	
+	/**
+	 * @return Reference to list of costing information
+	 */
 	public List<Double> getCostingInformation(){
 		return costings;
 	}
 	
+	/**
+	 * Registers the institution with the JADE DF Service (allows for agents to look it up)
+	 */
 	protected void registerWithDF() {
 		// Register this Agent with the DF Service
 		DFAgentDescription dfd = new DFAgentDescription();
@@ -81,24 +108,54 @@ public class MBCInstitution extends Agent {
 		}
 	}
 	
-	
+	/**
+	 * The behaviour that controls the running of the institution
+	 * @author Grant Smith
+	 */
+	@SuppressWarnings("serial")
 	public class InstitutionBehaviour extends Behaviour{
-
+		
+		// Determines if the agent should be shutdown
 		boolean isDone = false;
 		
+		// Templates used to process incoming messages
 		MessageTemplate receiveVisits, visitUpdate, costingRequest;
 		
 		// Used to get visit coordinates
 		public JourneyInfoHelper journeyInfo;
 		
+		// If costings should start randomly assigned (can be set by incoming arguments)
+		public boolean randomCostings = false;
+		
+		/**
+		 * Default constructor (initialises message templates)
+		 */
 		InstitutionBehaviour(){
 			receiveVisits = MessageTemplate.MatchConversationId("all-visits");
 			visitUpdate = MessageTemplate.MatchConversationId("update-visits");
 			costingRequest = MessageTemplate.MatchConversationId("costing-request");
 			
 			journeyInfo = new JourneyInfoHelper();
+			
 		}
 		
+		/**
+		 * Overrides setAgent to update randomCostings using arguments
+		 */
+		@Override
+		public void setAgent(Agent a){
+			super.setAgent(a);
+			
+			Object[] args = this.myAgent.getArguments();
+			if(args != null && args.length > 0 && args[0] instanceof Boolean){
+				randomCostings = (Boolean) args[0];
+			}
+		}
+		
+		/**
+		 * Called when visits are initially received
+		 * @param visitMsg The message to extract the visits from
+		 */
 		protected void receiveVisits(ACLMessage visitMsg){
 			try {
 				ContentElement d = myAgent.getContentManager().extractContent(visitMsg);
@@ -121,18 +178,27 @@ public class MBCInstitution extends Agent {
 			}
 		}
 		
+		/**
+		 * Set every costing value back to 1.0d or a random value (between 0 and 2) if randomCostings is true
+		 */
 		protected void resetCostings(){
 			if(visits != null){
 				costings = new ArrayList<Double>();
 				Random r = new Random();
 				for(int i = 0; i < visits.size(); i++){
-					costings.add(1.0d);
-					// TODO REMOVE RANDOM
-					//costings.add(Math.round((r.nextDouble() < 0.1d ? r.nextDouble() * 2.0d : 1.0d) * 100) / 100.0d);
+					if(randomCostings){
+						costings.add(Math.round((r.nextDouble() < 0.1d ? r.nextDouble() * 2.0d : 1.0d) * 100) / 100.0d);
+					}else{
+						costings.add(1.0d);
+					}
 				}
 			}
 		}
 		
+		/**
+		 * Updates the list of available visits using a message
+		 * @param visitMsg Message to extract the available visits from
+		 */
 		protected void updateAvailableVisits(ACLMessage visitMsg){
 			try {
 				ContentElement d = myAgent.getContentManager().extractContent(visitMsg);
@@ -151,6 +217,10 @@ public class MBCInstitution extends Agent {
 			}
 		}
 		
+		/**
+		 * Responds to a request with the information regarding the costings of all visits
+		 * @param msg Creates a response to this message
+		 */
 		protected void handlCostingRequest(ACLMessage msg){
 			while(isPaused){
 				try {
@@ -176,6 +246,10 @@ public class MBCInstitution extends Agent {
 			}
 		}
 
+		/**
+		 * Gets the x and y coordinates of each visit for rendering
+		 * @param visits List of visits to update with coordinates
+		 */
 		private void getXYCoords(List<VisitData> visits){
 			// For every visit, ask the DataStore for their x and y location
 			Point2D.Double visitCoords;

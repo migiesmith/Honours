@@ -18,36 +18,38 @@ public class Main{
 	
     public static void main(String[] args){	
     	
+    	// Get the IP for displaying
     	String host = MBCHelper.getIP();
     	String port = "1099";
     	
+    	// Get an instance of the JADE runtime
 		Runtime myRuntime = Runtime.instance();
 
-		// prepare the settings for the platform that we're going to start
+		// Prepare the settings for the platform that we're going to start
 		Profile myProfile = new ProfileImpl();		
 		// Increase the maximum results from the DF (yellow-pages)
 		myProfile.setParameter("jade_domain_df_maxresult","1000");
 
-		// create the main container
+		// Create the main container
 		ContainerController myContainer = myRuntime.createMainContainer(myProfile);		
 		
 		try {
-			//JADE gui
-		    AgentController rma = myContainer.createNewAgent("rma", "jade.tools.rma.rma", null);
-		    rma.start();
-		    
-		    
+		    // Start the MBCAuctioneer
 		    AgentController auctioneer = myContainer.createNewAgent("Auctioneer", MBCAuctioneer.class.getCanonicalName(), null);
 		    auctioneer.start();
 		    
+		    // Start the MapServer
 		    AgentController mapServer = myContainer.createNewAgent("Map-Server", MapServer.class.getCanonicalName(), null);
 		    mapServer.start();
 
-		    AgentController institution = myContainer.createNewAgent("Institution", MBCInstitution.class.getCanonicalName(), null);
+		    // Start the MBCInstitution
+		    AgentController institution = myContainer.createNewAgent("Institution", MBCInstitution.class.getCanonicalName(), new Object[]{false}); // Last parameter determines if costings are random
 		    institution.start();
 
+		    // Write the IP to the console
 	    	System.out.println(host +":"+ port);
 	    	
+	    	// Show a prompt containing the IP
 		    JOptionPane joPane = new JOptionPane();
 		    joPane.setMessage("Bidders can connect via "+ host +":"+ port);
 		    joPane.setOptions(new Object[]{"Confirm"});
@@ -55,6 +57,10 @@ public class Main{
 		    ipPrompt.setAlwaysOnTop(false);
 		    ipPrompt.setVisible(true);
 		    ipPrompt.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+
+			//JADE gui - Only needed for debugging
+		    //AgentController rma = myContainer.createNewAgent("rma", "jade.tools.rma.rma", null);
+		    //rma.start();
 		    
 		} catch(StaleProxyException e) {
 		    e.printStackTrace();

@@ -34,24 +34,25 @@ import javax.swing.event.ChangeEvent;
 
 public class MBCInstitutionGui extends JFrame {
 
+	// The panel containing all other gui components
 	private JPanel contentPane;
-
+	// Spinner used to modify costing values
 	private JSpinner spinnerMultiplier;
-	
+	// Buttons to toggle pausing of the entire system
 	private JButton btnDone, btnEdit;
-
+	// Reference to the institution owning this GUI
 	private MBCInstitution institution;
-	
+	// List for displaying and selecting available visits
 	private JList<String> visitList;
-	
+	// Panel used for rendering the visits
 	JPanel visitPanel;
-	
+	// The currently selected visit
 	private VisitData selectedVisit;
 	
-
 	public void paint(Graphics g) {
 		super.paint(g);
 		
+		// Render the visits to visitPanel
 		List<VisitData> allVisits = institution.getVisits();
 		if(allVisits != null){
 			
@@ -67,6 +68,9 @@ public class MBCInstitutionGui extends JFrame {
 		
 	}
 
+	/**
+	 * Updates the visitList to display the correct information
+	 */
 	public void updateSelections(){
 		// Add all available visits to the list model
 		DefaultListModel<String> listModel = new DefaultListModel<String>();
@@ -90,7 +94,12 @@ public class MBCInstitutionGui extends JFrame {
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
 		
+		// Set the reference to the institution
 		this.institution = institution;
+		
+		
+		
+		// Initialise the GUI (created using WindowBuilder in eclipse)
 		
 		visitPanel = new JPanel();
 		visitPanel.setToolTipText("View of all visits. Greyed out visits have been won and cannot be modified. Red outline indicates a multiplier between 0 and 1. Blue outline indicates a multiplier greater than 1");

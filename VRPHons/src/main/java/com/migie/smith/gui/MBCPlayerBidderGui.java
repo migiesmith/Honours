@@ -44,18 +44,24 @@ import agent.auctionSolution.dataObjects.VisitData;
 
 public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 
+	// The panel containing all other gui components
 	private JPanel contentPane;
+	// Reference to the player bidder agent
 	private	MBCPlayerBidder player;
+	// Stores information regarding bids won
 	private JTextPane txtInformation;
+	// Shows the current state (eg 'Bidding on visit X')
 	private JLabel lblGameState;
 	// The spinner for selecting where to insert a visit
 	private JList<Integer> lsInsertLocation;
 	
 	// The label for displaying the bidder's balance
 	JLabel lblBalance;
-	// Cost and Reward for adding at the selected location
+	// Initial bid (no loss, no profit)
 	private JLabel lblSuggestedBid;
+	// Max possible bid (set by the auctioneer)
 	private JLabel lblMaxBid;
+	// The multiplier of the profit/loss (set by the institution)
 	private JLabel lblNetMultiplier;
 	
 	
@@ -72,42 +78,75 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 	// The locations that the new visit can be added
 	List<Integer> possibleLocations;
 	private JScrollPane scrollPane_1;
+	
+	// All visits in the current problem
 	List<VisitData> allVisits;
+	// The costing information for each visit
 	List<Double> costingInfo;
+	// All visits still to be bidded for
 	List<VisitData> availableVisits;
 
+	// Panel used to render timing information of the current route
 	private JPanel timingPanel;
+	// Spinner used to modify the current bid
 	private JSpinner currentBidSpinner;
+	
+	// Labels to help users identify what each component is for
 	private JLabel lblTimeFrame;
 	private JLabel lblLog;
 	private JLabel lblAddAt;
 	private JLabel lblNet;
 	private JLabel lblRanking;
 	
-	
+	/**
+	 * @param message Value to add to the on screen log
+	 */
 	public void showMessage(String message){
 		txtInformation.setText(message + txtInformation.getText());
 	}
 	
+	/**
+	 * @param message The value to display as the current state
+	 */
 	public void setGameState(String message){
 		lblGameState.setText(message);
 	}
 	
+	/**
+	 * @param balance Updates the balance display with this value
+	 */
 	public void setBalance(double balance){
 		lblBalance.setText("Balance: " + String.valueOf(balance));
 	}
 	
+	/**
+	 * @param allVisits New value to use for the all visits list
+	 */
 	public void setAllVisits(List<VisitData> allVisits){
 		this.allVisits = allVisits;
 	}
+	/**
+	 * @param costingInfo New value to use for costing information
+	 */
 	public void setCostingInfo(List<Double> costingInfo){
 		this.costingInfo = costingInfo;
 	}
+	/**
+	 * @param availableVisits New value to use for the available visits list
+	 */
 	public void setAvailableVisits(List<VisitData> availableVisits){
 		this.availableVisits = availableVisits;
 	}
 	
+	/**
+	 * Redraws the GUI with the current turns information
+	 * @param route The route for this turn
+	 * @param possibleLocations The locations newVisit can be added at
+	 * @param newVisit The visit to be bidded for
+	 * @param times The timining information to be displayed in timingPanel
+	 */
 	public void renderTurn(List<VisitData> route, List<Integer> possibleLocations, VisitData newVisit, List<TimingRepresentation> times){
+		// Update all values
 		this.route = route;
 		this.possibleLocations = possibleLocations;
 		this.newVisit = newVisit;
@@ -142,14 +181,14 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 	public void paint(Graphics g) {
 		super.paint(g);
 		
+		// Determine this player's rank
 		List<MBCAccountant> bidderBalances = player.getBalances();
 		if(bidderBalances != null){
 			int playerRank = 1;
 			for(int i = 0; i < bidderBalances.size(); i++){
 				if(bidderBalances.get(i).getBalance() > player.getBalance() && !bidderBalances.get(i).getBidder().equals(player.getAID())){
-				playerRank++;
+					playerRank++;
 				}
-				System.out.println(bidderBalances.get(i).getBalance() + " - " + bidderBalances.get(i).getBidder());
 			}
 			lblRanking.setText("Ranked "+ playerRank +" of "+ bidderBalances.size());
 		}
@@ -208,6 +247,7 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 			}
 		}
 
+		// Update timingPanel to show where the player is adding newVisit
 		if(lsInsertLocation.getSelectedValue() != null && lsInsertLocation.getSelectedValue() == 0){
 			gTimingPanel.setColor(Color.red);
             Graphics2D g2TimingPanel = (Graphics2D) gTimingPanel;
@@ -219,8 +259,13 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 		gTimingPanel.drawRect(0, 0, timingPanel.getWidth() - 1, timingPanel.getHeight() - 1);
 	}
 	
+	/**
+	 * Process the end of a turn
+	 */
 	protected void endTurn(){
+		// Clear newVisit
 		newVisit = null;
+		// Reset the bid spinner
 		currentBidSpinner.setModel(new SpinnerNumberModel(0.0, 0.0, 0.0, 0.1));
 
 		// We cannot make a move, disable the buttons
@@ -230,6 +275,7 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 				c.setEnabled(false);
 			}
 		}
+		// Redraw the GUI
 		repaint();
 	}
 	
@@ -248,6 +294,9 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 		this.addWindowListener(this);
 		
 		this.repaint();
+
+		
+		// Initialise the GUI (created using WindowBuilder in eclipse)
 		
 		JLabel lblNewLabel = new JLabel("Player Bidder");
 		lblNewLabel.setHorizontalAlignment(SwingConstants.CENTER);

@@ -5,14 +5,17 @@ import java.util.List;
 
 public class Log {
 
+	// List of every log entry
 	protected List<String> logData;
 	
+	// Default constructor
 	Log(){
+		// Create an empty list of strings for the log
 		logData = new ArrayList<String>();
 	}
 	
 	// Get the contents of the log
-	public List getLog(){
+	public List<String> getLog(){
 		return logData;
 	}
 	

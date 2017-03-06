@@ -21,9 +21,18 @@ import agent.auctionSolution.dataObjects.HasXandY;
 import agent.auctionSolution.dataObjects.VisitData;
 
 public class MBCHelper {
-
+	
+	// The size of each node (visit) when rendering
 	private static int NODE_SIZE = 4;
 	
+	/**
+	 * Loops through visitList to find a visit with a name matching the one passed in.
+	 * This will not handle lists containing visits with duplicate names although 
+	 * visits should never share names anyway as they should all be unique.
+	 * @param visitList The list to search in
+	 * @param visit The visit to find
+	 * @return The position of the visit in the list (-1 if not found)
+	 */
 	public static int visitPosInList(List<VisitData> visitList, VisitData visit){
 		int index = 0;
 		for(VisitData v : visitList){
@@ -34,7 +43,15 @@ public class MBCHelper {
 		}
 		return -1;
 	}
-
+	
+	/**
+	 * Determine how much scaling is needed to fit a list of visits into a JPanel 
+	 * without them being excessively big or small.
+	 * @param renderPanel The panel to fit the visit in
+	 * @param depot The depot relating to the visits
+	 * @param allVisits The visits to fit to the screen
+	 * @return The largest scaling factor found on the smallest dimension of the JPanel
+	 */
 	protected static double calcRenderScale(JPanel renderPanel, Depot depot, List<VisitData> allVisits){
 		double maxX = 0.0d;
 		double maxY = 0.0d;
@@ -50,7 +67,18 @@ public class MBCHelper {
 		return ((double)Math.min(renderPanel.getWidth()/2 * 0.9, renderPanel.getHeight()/2 * 0.9)) / ((double)Math.max(maxX, maxY));
 	}
 	
+	/**
+	 * Determine if there is a visit at the passed in position. Allows for selecting of visits on a JPanel that is rendering using 'drawVisits'
+	 * @param mouseX The x position to look at
+	 * @param mouseY The y position to look at
+	 * @param renderPanel The JPanel the visits are on
+	 * @param allVisits The visits being rendered to JPanel (these are also the visits being checked)
+	 * @param depot The depot relating to the visits
+	 * @param availableVisits The visit to be returned must be contained in this list
+	 * @return
+	 */
 	public static VisitData visitAtPosition(int mouseX, int mouseY, JPanel renderPanel, List<VisitData> allVisits, Depot depot, List<VisitData> availableVisits){
+		// Get the centre point of the JPanel
 		int xOffset = renderPanel.getWidth() / 2;
 		int yOffset = renderPanel.getHeight() / 2;
 
@@ -60,29 +88,46 @@ public class MBCHelper {
 			renderScale = calcRenderScale(renderPanel, depot, allVisits);		
 		}
 		
+		// Loop through every visit in allVisits
 		for(int i = 0; i < allVisits.size(); i++){
 			VisitData v = allVisits.get(i);
+			// Get the x and y position of the visit
 			int visitX = xOffset + (int)((v.x - depot.x) * renderScale);
 			int visitY = yOffset + (int)((v.y - depot.y) * renderScale);
-			
+			// Check if the visit is close enough to mouseX and mouseY and it is within the list availableVisits
 			if(Math.abs(mouseX - visitX) < NODE_SIZE*2 && Math.abs(mouseY - visitY) < NODE_SIZE*2 && visitPosInList(availableVisits, v) != -1){
+				// Found a visit, return it
 				return v;
 			}
 		}
-		
+		// We didn't find a visit so return null
 		return null;
 	}
 	
+	/**
+	 * Given the relevant information, all visits are drawn to a JPanel and 
+	 * a route is rendered showing potential connections to a new visit 
+	 * including a selected one.
+	 * @param renderPanel The JPanel to render to
+	 * @param allVisits List of all visits to be rendered (grey if not in availableVisits)
+	 * @param depot The depot relating to the visits list (the current problem)
+	 * @param newVisit The visit potentially being added to the route
+	 * @param availableVisits The visits yet to be bidded on
+	 * @param costingInfo The costing information for displaying incentives
+	 * @param route The current route
+	 * @param possibleLocations Possible locations to add newVisit
+	 * @param insertLocation The current selected location to add newVisit
+	 */
 	public static void drawVisits(JPanel renderPanel, List<VisitData> allVisits, Depot depot, VisitData newVisit, List<VisitData> availableVisits, List<Double> costingInfo, List<VisitData> route, List<Integer> possibleLocations, int insertLocation){		
-		//int nodeSize = NODE_SIZE;
-		
+		// Create a temporary image to render the visits to
 		BufferedImage b = new BufferedImage(renderPanel.getWidth(), renderPanel.getHeight(), BufferedImage.TYPE_INT_RGB);
-
+		
+		// Get the graphics object and clear the screen.
 		Graphics2D g2 = (Graphics2D) b.getGraphics();
-		FontMetrics fm = g2.getFontMetrics();
 		g2.setColor(Color.WHITE);
 		g2.fillRect(0, 0, renderPanel.getWidth(), renderPanel.getHeight());
-
+		
+		// Set rendering hints to improve the quality of the image
 		g2.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
 		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		g2.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
@@ -246,6 +291,9 @@ public class MBCHelper {
 		
 	}
 	
+	/**
+	 * @return The external IP address of this machine as stated by "http://checkip.amazonaws.com"
+	 */
     public static String getIP(){
     	String ip = "";
 		try {

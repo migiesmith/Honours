@@ -35,20 +35,32 @@ import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 
+/**
+ * MBCPlayerBidder extends the Bidder class to allow for user interaction
+ * with the system. Doing so allows the user to compete with the bidders
+ * (which can include other players) in attempt to improve the overall
+ * solution.
+ * @author Grant Smith
+ */
 public class MBCPlayerBidder extends Bidder {
 
 	// The gui for this bidder
 	protected MBCPlayerBidderGui gui;
+	// The behaviour of the bidder
 	protected MBCBidderBehaviour behaviour;
+	// List of all visits
 	protected List<VisitData> allVisits = null;
+	// List of all visits yet to be bidded on
 	protected List<VisitData> availableVisits = null;
 
+	// List of costing multipliers for every visit
 	protected List<Double> costingInfo;
 	
+	// The log used to document bidder's bids and strategy
 	protected Log bidLog;
 	
+	// The balance of every bidder (used for the ranking system)
 	protected List<MBCAccountant> bidderBalances = null;
-	
 	
 	// The Accountant for this Bidder Agent
 	protected MBCAccountant accountant = new MBCAccountant();
@@ -58,10 +70,14 @@ public class MBCPlayerBidder extends Bidder {
 	
 	@Override
 	protected void setup(){
+		// Start the bidder's behaviour
 		behaviour = new MBCBidderBehaviour();		
 		addBehaviour(behaviour);
 		
+		// Start the bidder's GUI
 		gui = new MBCPlayerBidderGui(this);
+		
+		// Initialise the log
 		bidLog = new Log();
 		bidLog.log("bid, cost, maxbid,");
 		
@@ -86,44 +102,82 @@ public class MBCPlayerBidder extends Bidder {
 
 	@Override
 	protected void takeDown() {
-		// Remove from DF Service
 		try {
+			// Remove from DF Service
 			DFService.deregister(this);
-		} catch (Exception e) {
-		}
+		} catch (Exception e) {}
 	}
 	
+	/**
+	 * Updates the behaviour with the next move
+	 * @param nextMove The move passed to the behaviour
+	 */
 	public void makeMove(MBCBidderMove nextMove){
 		behaviour.moveMade = true;
 		behaviour.nextMove = nextMove;
 	}
 	
+	/**
+	 * @return The depot of the current problem
+	 */
 	public Depot getDepot(){
 		return behaviour.depot;
 	}
 	
+	/**
+	 * Returns the cost for adding a visit at a certain position
+	 * @param v Visit to be added
+	 * @param position Index to be inserted
+	 * @return Cost of adding v at position
+	 */
 	public double getCost(VisitData v, int position){
 		return behaviour.costForAddingAt(v, position);
 	}
 	
+	/**
+	 * @param v The visit to get the max bid for
+	 * @return The max bid for v
+	 */
 	public double getMaxBid(VisitData v){
+		/*
+		 * This is set per turn by the auctioneer
+		 * so passing in v in this instance means
+		 * nothing but it is left in for any
+		 * extending classes.
+		*/
 		return maxBidForVisit;
 	}
 	
+	/**
+	 * @return The current balances of all bidders
+	 */
 	public List<MBCAccountant> getBalances(){
 		return this.bidderBalances;
 	}
 	
+	/**
+	 * @return The balance of this bidder
+	 */
 	public double getBalance(){
 		return this.accountant.getBalance();
 	}
 	
+	/**
+	 * The core logic of MBCPlayerBidder. Handles the entire bidding process.
+	 * @author Grant
+	 */
 	private class MBCBidderBehaviour extends BidderBehaviour{
-
+		
+		// The location to insert the visit if it is won
 		private int addAt = -1;
+		// Determines if a move has been made by the player
 		private boolean moveMade = false;
+		// The move made by the player
 		private MBCBidderMove nextMove;
 
+		/**
+		 * Registers the MBCGiveOntology and receives all visits from the auctioneer
+		 */
 		@Override
 		protected boolean initialise() {
 			// Register MBCGiveOntology
@@ -134,18 +188,27 @@ public class MBCPlayerBidder extends Bidder {
 			return true;
 		}
 		
+		/**
+		 * Check if there is a message from the auctioneer containing 
+		 * the conversation id "available-visits". If there is the update 
+		 * the all visits list or the available visits list. Also receives 
+		 * costing information updates.
+		 */
 		protected void receiveAvailableVisits(){
-			// Receive an available visits list
+			// Receive an available visits message
 			ACLMessage allVisitsMsg = myAgent.receive(MessageTemplate.MatchConversationId("available-visits"));
+			// Check if there is a message to receive
 			if(allVisitsMsg != null){
 				try {
 					ContentElement d = myAgent.getContentManager().extractContent(allVisitsMsg);
 					if (d instanceof GiveObjectPredicate) {
 						if(allVisits == null){
+							// Set all visits and update the list with valid coordinates
 							allVisits = (List<VisitData>) ((GiveObjectPredicate) d).getData();
 							getXYCoords(allVisits);
 							gui.setAllVisits(allVisits);
 						}else{
+							// Set the available visits list and update the list with valid coordinates
 							availableVisits = (List<VisitData>) ((GiveObjectPredicate) d).getData();
 							getXYCoords(availableVisits);
 							gui.setAvailableVisits(availableVisits);
@@ -162,6 +225,7 @@ public class MBCPlayerBidder extends Bidder {
 			
 			// Get a list of costing values for each visit
 			ACLMessage costingUpdate = myAgent.receive(MessageTemplate.MatchConversationId("costing-update"));
+			// Check if there was a message to receive
 			if(costingUpdate != null){
 				try {
 					ContentElement d = myAgent.getContentManager().extractContent(costingUpdate);
@@ -179,12 +243,18 @@ public class MBCPlayerBidder extends Bidder {
 			}
 		}
 		
+		/**
+		 * Waits for a message from the auctioneer containing the value 
+		 * of the max bid for the next item to be bidded on.
+		 */
 		protected void getMaxBid(){
 			ACLMessage allVisitsMsg = myAgent.blockingReceive(MessageTemplate.MatchConversationId("visit-max-bid"));
+			// Check if there was a message to receive
 			if(allVisitsMsg != null){
 				try {
 					ContentElement d = myAgent.getContentManager().extractContent(allVisitsMsg);
 					if (d instanceof GiveObjectPredicate) {
+						// Update the max bid
 						maxBidForVisit = (Double) ((GiveObjectPredicate) d).getData();
 					}
 				} catch (UngroundedException e) {
@@ -197,6 +267,11 @@ public class MBCPlayerBidder extends Bidder {
 			}
 		}
 		
+		/**
+		 * Start the player's turn, updating relevant information including 
+		 * max bid, available visits, and gui information.
+		 * @param v
+		 */
 		protected void startTurn(VisitData v){
 			// Get the max bid
 			getMaxBid();
@@ -295,6 +370,11 @@ public class MBCPlayerBidder extends Bidder {
 			moveMade = false;
 		}
 
+		/**
+		 * Update the x and y coordinates of the visits passed in
+		 * and the depot.
+		 * @param visits
+		 */
 		private void getXYCoords(List<VisitData> visits){
 			// For every visit, ask the DataStore for their x and y location
 			Point2D.Double visitCoords;
@@ -320,7 +400,10 @@ public class MBCPlayerBidder extends Bidder {
 			}
 		}
 		
-		// Returns the x and y coordinates of a visit
+		/**
+		 * @param location String identifier of the location (from a visit)
+		 * @return The x and y coordinates of a location
+		 */
 		private Point2D.Double requestCoordinates(String location) {
 			// Send message for coordinates for the depot
 			ACLMessage msg = new ACLMessage(ACLMessage.REQUEST);
@@ -349,13 +432,17 @@ public class MBCPlayerBidder extends Bidder {
 			}
 
 			// Store the value of the bid
-			double bid = nextMove.bid;//costForAddingAt(v, addAt);			
+			double bid = nextMove.bid;
+			// Set the insert location
 			addAt = nextMove.insertLocation;
 
+			// If the player did not reject the visit
 			if(nextMove.acceptVisit){
+				// Update the log
 				bidLog.log(nextMove.bid +","+ costForAddingAt(v, nextMove.insertLocation) +","+ maxBidForVisit);
 			}
 			
+			// Return the bid (or reject bid). This value is processed by the parent clas
 			return (nextMove.acceptVisit ? bid : Double.MIN_VALUE);
 		}
 
@@ -444,9 +531,12 @@ public class MBCPlayerBidder extends Bidder {
 		
 		@Override
 		public boolean canAllocateToRoute(VisitData v) {
+			// Start the best cost really high
 			double bestCost = Double.MAX_VALUE;
+			// Set the add at location to show that it is currently invalid
 			addAt = -1;
 			int i = 0;
+			// Loop through each visit in the route and determine which insert location is the best
 			do{
 				v.transport = determineTransportMode(v, i);
 				if(canAddAt(v, i)){
@@ -469,6 +559,7 @@ public class MBCPlayerBidder extends Bidder {
 
 		@Override
 		public void handleWonBid(VisitData v) {
+			// Store the current balance to determine if a profit/loss was made
 			double oldBalance = accountant.getBalance();
 			
 			if(carShare != null){
@@ -496,7 +587,7 @@ public class MBCPlayerBidder extends Bidder {
 				v.transport = "Public Transport";
 				
 				// Update the accountant
-				accountant.updateBalance((nextMove.bid  - costForAddingAt(v, addAt)) * costingInfo.get(visitPosInList(allVisits, v)));
+				accountant.updateBalance((nextMove.bid  - costForAddingAt(v, addAt)) * costingInfo.get(MBCHelper.visitPosInList(allVisits, v)));
 				
 				route.visits.add(addAt + 1, v);
 				System.out.println("CARSHARE");
@@ -505,7 +596,7 @@ public class MBCPlayerBidder extends Bidder {
 				v.transport = determineTransportMode(v, addAt);
 				
 				// Update the accountant
-				accountant.updateBalance((nextMove.bid - Math.abs(costForAddingAt(v, addAt))) * costingInfo.get(visitPosInList(allVisits, v)));
+				accountant.updateBalance((nextMove.bid - Math.abs(costForAddingAt(v, addAt))) * costingInfo.get(MBCHelper.visitPosInList(allVisits, v)));
 				
 				route.visits.add(addAt, v);
 			}			
@@ -523,17 +614,6 @@ public class MBCPlayerBidder extends Bidder {
 				gui.showMessage("Won: "+ v.name +" with bid of "+ (Math.round(nextMove.bid * 10)/10.0) +" ("+ (Math.round(diff * 10)/10.0) + (diff < 0 ? " Loss" : " Profit") +")\n");
 			}
 			
-		}
-
-		protected int visitPosInList(List<VisitData> visitList, VisitData visit){
-			int index = 0;
-			for(VisitData v : visitList){
-				if(v.name.equals(visit.name))
-					return index;
-				
-				index++;
-			}
-			return -1;
 		}
 		
 		@Override
