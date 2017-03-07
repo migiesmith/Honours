@@ -21,6 +21,8 @@ ArrayList<ArrayList<VisitData>> routes = new ArrayList<ArrayList<VisitData>>();
 
 BarChart barChart = null;
 
+int selectedIndex = -1;
+
 class Color {
   int r, g, b, a;
   Color() {
@@ -215,28 +217,35 @@ void drawRoutes() {
   VisitData prev = depot;
 
   // Draw Connections
-  int colIndex = 0;
+  int index = 0;
   for (ArrayList<VisitData> route : routes) {
     prev = depot;
     for (VisitData visit : route) {
-      Color c = colours.get(colIndex);
-      stroke(c.r, c.g, c.b, c.a);
+      Color c = colours.get(index);
+      stroke(c.r, c.g, c.b, (index == selectedIndex || selectedIndex == -1 ? c.a : 30));
       strokeWeight(1);
-      line((int)prev.x, (int)prev.y, (int)visit.x, (int) visit.y);
+      if(index == selectedIndex || selectedIndex == -1)
+        line((int)prev.x, (int)prev.y, (int)visit.x, (int) visit.y);
       prev = visit;
     }
 
-    line((int)prev.x, (int)prev.y, (int)depot.x, (int) depot.y);
+    if(index == selectedIndex || selectedIndex == -1)
+      line((int)prev.x, (int)prev.y, (int)depot.x, (int) depot.y);
 
-    colIndex++;
+    index++;
   }
 
+  index = 0;
   for (ArrayList<VisitData> route : routes) {
     prev = depot;
     for (VisitData visit : route) {
+      int tempA = visit.col.a;
+      visit.col.a = (index == selectedIndex || selectedIndex == -1 ? tempA : 30);
       visit.draw();
+      visit.col.a = tempA;
       prev = visit;
     }
+    index++;
   }
 
   depot.draw();
@@ -249,23 +258,38 @@ void drawChart() {
     fill(60);
     stroke(60);
     textSize(20);
+    
+    double avg = 0.0d;
+    
+    textAlign(CENTER, CENTER);
     switch(chartVar) {
     case TIME:
       text("Time per route", width/2 + 30, 30);
+      for(double t : times)
+        avg += t;
       break;
     case EMISSIONS:
       text("Emissions per route", width/2 + 30, 30);
+      for(double e : emissions)
+        avg += e;
       break;
     case DISTANCE:
       text("Distance per route", width/2 + 30, 30);
+      for(double d : distances)
+        avg += d;
       break;
     case COST:
       text("Cost per route", width/2 + 30, 30);
+      for(double c : costs)
+        avg += c;
       break;
     }
+    
+    avg /= routes.size();
+    
     textSize(11);
-    text("", 
-      width/2, 50);
+    textAlign(LEFT, TOP);
+    text("Average: "+ avg, 5, 50);
   } else {
     setupChart();
   }
@@ -319,6 +343,7 @@ void setupChart() {
       }
       labels[i] = String.valueOf(i);
       maxVal = max(maxVal, data[i]);
+      maxVal = maxVal + (10 - maxVal % 10);
     }
     barChart.setData(data);
     barChart.setBarLabels(labels);
@@ -359,6 +384,18 @@ void keyPressed() {
       drawMode = DrawModes.CHART;
       chartVar = ChartVars.COST;
       setupChart();
+    }else if(keyCode == KeyEvent.VK_ENTER){
+      selectedIndex = -1;
+    }
+  }else{
+    if(key == '+'){
+      selectedIndex++;
+      if(selectedIndex > routes.size()-1)
+        selectedIndex = 0;
+    }else if(key == '-'){
+      selectedIndex--;
+      if(selectedIndex < 0)
+        selectedIndex = routes.size() - 1; 
     }
   }
 }

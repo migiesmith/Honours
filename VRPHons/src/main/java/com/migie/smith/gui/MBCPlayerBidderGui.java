@@ -361,7 +361,8 @@ public class MBCPlayerBidderGui extends JFrame implements WindowListener{
 		currentBidSpinner.addChangeListener(new ChangeListener(){
 			public void stateChanged(ChangeEvent e) {
 				double suggestedBid = Math.abs(player.getCost(newVisit, (Integer)lsInsertLocation.getSelectedValue()));
-				double costingMult = costingInfo.get(MBCHelper.visitPosInList(allVisits, newVisit));
+				int vPos = MBCHelper.visitPosInList(allVisits, newVisit);
+				double costingMult = costingInfo.get((vPos != -1 ? vPos : 0));
 				lblNetMultiplier.setText("Net Multiplier: " + costingMult);
 				lblNet.setText("Net: " + Math.round((Double.valueOf(currentBidSpinner.getValue().toString()) - suggestedBid) * costingMult * 100) / 100.0d);
 			}			

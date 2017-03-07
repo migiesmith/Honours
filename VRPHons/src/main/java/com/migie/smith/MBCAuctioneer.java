@@ -46,25 +46,31 @@ import jade.lang.acl.MessageTemplate;
 
 public class MBCAuctioneer extends Auctioneer{
 
-	String results = "";
-
+	/*
+	 *  Stores the AID of every MBC bidder (prevents sending/waiting 
+	 *  with agents that can't handle certain messages)
+	 */
 	List<AID> mbcBidders = new ArrayList<AID>();
 	
+	// The AID for contacting the computational institution
 	AID institution;
 
+	// Copy of each bidder's balance for rankings
 	List<MBCAccountant> bidderBalances = null;
 	
 	@Override
 	protected AuctionBehaviour getAuctionBehaviour() {
+		// Returns the auction behaviour (this is called by the parent class)
 		if(auction == null && problem != null){
-			auction = new Auction(problem.visits, bidders, problem.depot);
+			// Create a new behaviour if we don't have one yet
+			auction = new MBCAuctionBehaviour(problem.visits, bidders, problem.depot);
 		}
 		return auction;
 	}
 	
 	@Override
 	public void start() {
-		// Return values to default
+		// Reset values to default
 		auction = null;
 		bidders = new ArrayList<AID>();
 		renderOffset = new Rectangle2D.Double(0, 0, 0, 0);
@@ -97,6 +103,7 @@ public class MBCAuctioneer extends Auctioneer{
 		DFAgentDescription[] searchResult = null;
 		try {
 			searchResult = DFService.search(this, dfd);
+			// If we find results, just grab the first one
 			if(searchResult.length > 0)
 				institution = searchResult[0].getName();						
 		} catch (FIPAException e) {
@@ -113,20 +120,26 @@ public class MBCAuctioneer extends Auctioneer{
 
 		DFAgentDescription[] searchResult = null;
 		try {
+			// Search for bidders on the DF Service
 			searchResult = DFService.search(this, dfd);
 			System.out.println(searchResult.length + " bidders available on DF");
 
+			// Create a message to initialise them all
 			ACLMessage bidderArgs = new ACLMessage(ACLMessage.INFORM);
 			bidderArgs.setConversationId("bidder-arguments");
 			
+			// Add all bidders as receivers to the inform message
 			for(int i = 0; i < searchResult.length; i++){
 				System.out.println(" |" + searchResult[i].getName().getLocalName());
+				// Add this bidder to our bidder list
 				bidders.add(searchResult[i].getName());
+				// Add this bidder to our MBC Bidder list
 				mbcBidders.add(searchResult[i].getName());
 				bidderArgs.addReceiver(searchResult[i].getName());
 			}
-			// Return limit, minimiseFactor, transportMode, isCarShareEnabled
+			// Set the content of the message (Return limit, minimiseFactor, transportMode, isCarShareEnabled)
 			bidderArgs.setContent(gui.getReturnableVisits() +","+ minimiseFactor +","+ transportMode +","+ gui.getAllowCarSharing());
+			// Send the message
 			send(bidderArgs);
 			
 		} catch (FIPAException e) {
@@ -141,7 +154,9 @@ public class MBCAuctioneer extends Auctioneer{
 			createAgents(Bidder.class, biddersNeeded - biddersToCreate, biddersToCreate);
 		}
 		
+		// Create a new list for storing balances
 		bidderBalances = new ArrayList<MBCAccountant>();
+		// For each bidder, add a new, empty balance
 		for(AID bidder : bidders){
 			MBCAccountant acc = new MBCAccountant();
 			acc.setBalance(0.0d);
@@ -153,12 +168,14 @@ public class MBCAuctioneer extends Auctioneer{
 	
 	@Override
 	protected Problem getProblem() {
+		// Returns the current problem
 		return problem;
 	}
 
 	@Override
 	public void loadFromFile() {
 		try {
+			// Load the contents of the problem file
 			BufferedReader br = new BufferedReader(new FileReader(files.get(currentProblem)));
 			StringBuilder sb = new StringBuilder();
 			String line = br.readLine();
@@ -170,6 +187,7 @@ public class MBCAuctioneer extends Auctioneer{
 			br.close();
 			String problemName = files.get(currentProblem);
 			problemName = problemName.substring(problemName.lastIndexOf("\\")+1, problemName.lastIndexOf("."));
+			// Create the new problem
 			problem = new Problem(problemName, sb.toString());
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -178,24 +196,34 @@ public class MBCAuctioneer extends Auctioneer{
 
 	@Override
 	public void loadFromFiles(List<String> files, List<Integer> noBidders) {
+		// Store the files to be run and the respective bidders needed
 		this.files = files;
 		this.noBidders = noBidders;
+		// Reset the index of the current problem
 		currentProblem = 0;
 		gui.setStatus(files.size() + (files.size() == 1 ? " problem" : " problems") +" ready to run.");
 	}
 	
 	private void nextProblem(){
+		// Increment the index of the current problem
 		currentProblem++;
+		// Load the next problem
 		if(currentProblem < files.size()){
 			loadFromFile();
 			start();
 		}
 	}
 	
-	// TODO Update this as it is a copy of the original in 'MyAuctioneer'
-	private class Auction extends AuctionBehaviour{
+	/**
+	 * Handles the extra processing required for MBC bidders and the institution:
+	 * Sends max bids, sends all visits, receives/sends costing information, 
+	 * requests and receives bidder logs, and saves logs and results.
+	 * @author Grant
+	 */
+	@SuppressWarnings("serial")
+	private class MBCAuctionBehaviour extends AuctionBehaviour{
 
-		Auction(List<VisitData> visits, List<AID> bidders, Depot depot) {
+		MBCAuctionBehaviour(List<VisitData> visits, List<AID> bidders, Depot depot) {
 			super(visits, bidders, depot);
 		}
 				
@@ -204,22 +232,34 @@ public class MBCAuctioneer extends Auctioneer{
 			// Register MBCGiveOntology
 			myAgent.getContentManager().registerOntology(MBCGiveOntology.getInstance());
 			
+			// Update the gui
 			gui.canLoadFile(false);
+			// Prepare the institution
 			sendAllVisitsToInstitution();
 			
+			// Update the institution with the available visits
+			updateInstitution();
+			// Send all visits to the bidders
 			sendAllVisits();
+			// Send costing information to each bidder
+			sendCostingInfo();
 			return true;
 		}
 
 		@Override
 		protected AID getHighestBidder(){
+			// Update the institution with the available visits
+			updateInstitution();
+			// Update the bidders copy of the visits
 			sendAllVisits();
+			// Update the bidders copy of the costing info
+			sendCostingInfo();
 			return super.getHighestBidder();
 		}
 		
 		@Override
 		protected boolean auctionVisit(){	
-			
+			// Update the bidders knowledge of balances
 			informBiddersOfBalances();
 			
 			// Call the super function, we only want to add to it
@@ -253,6 +293,9 @@ public class MBCAuctioneer extends Auctioneer{
 			return canAuctionVisit;
 		}
 		
+		/**
+		 * receives balance updates and inform all bidders of the updates
+		 */
 		protected void informBiddersOfBalances(){
 			// Check for winner messages
 			ACLMessage winnerBalance = myAgent.receive(MessageTemplate.MatchConversationId("balance-inform"));
@@ -291,12 +334,20 @@ public class MBCAuctioneer extends Auctioneer{
 			}
 		}
 		
+		/**
+		 * Determines the max bid for a visit
+		 * @param v The visit to get the max bid for
+		 * @return The value of the max bid for visit v
+		 */
 		protected double getMaxBid(VisitData v){
+			// Calculate the max bid as double the cost to v from the depot
+			// (how much it would cost for a new route being added)
 			JourneyInfoHelper jHelper = new JourneyInfoHelper();
 			JourneyData journeyData = jHelper.getJourneyData(myAgent, problem.depot.location, v.location);
 			CostVariables costVars = jHelper.getCostVariables(myAgent);
 			double maxBid = 0.0d;
 			if (journeyData != null) {
+				// Check what transport mode and minimise factor is being used
 				if(transportMode.equals("Car")){
 					if(minimiseFactor.equals("Emissions")){
 						maxBid = journeyData.carEm;
@@ -317,34 +368,43 @@ public class MBCAuctioneer extends Auctioneer{
 					}
 				}
 			}
-			
+			// Double maxBid so that it represents a round trip
 			return maxBid * 2;
 		}
 		
-		protected void sendAllVisits(){
-			// Update the institution with the available visits
-			updateInstitution();
-			
-			ACLMessage initialVisitsMsg = new ACLMessage(ACLMessage.INFORM);
-			initialVisitsMsg.setConversationId("available-visits");
+		/**
+		 * Updates all bidders with the available visits
+		 */
+		protected void sendAllVisits(){			
+			ACLMessage availVisitsMsg = new ACLMessage(ACLMessage.INFORM);
+			availVisitsMsg.setConversationId("available-visits");
 			// Add all of the receivers
 			for(AID bidder : bidders){
-				initialVisitsMsg.addReceiver(bidder);
+				availVisitsMsg.addReceiver(bidder);
 			}
 			
-			initialVisitsMsg.setLanguage(new SLCodec().getName());
-			initialVisitsMsg.setOntology(GiveOntology.getInstance().getName());
+			availVisitsMsg.setLanguage(new SLCodec().getName());
+			availVisitsMsg.setOntology(GiveOntology.getInstance().getName());
 			try{
 				GiveObjectPredicate give = new GiveObjectPredicate();
 				give.setData(getVisits());
-				myAgent.getContentManager().fillContent(initialVisitsMsg, give);
-				myAgent.send(initialVisitsMsg);
+				// Fill the message
+				myAgent.getContentManager().fillContent(availVisitsMsg, give);
+				//Send the message
+				myAgent.send(availVisitsMsg);
 			}catch(CodecException e){
 				e.printStackTrace();
 			}catch(OntologyException e){
 				e.printStackTrace();
 			}
 			
+		}
+		
+		/**
+		 * Request the costing information from the institution and 
+		 * pass it on to the bidders.
+		 */
+		protected void sendCostingInfo(){
 			// Get the costing information from the institution
 			List<Double> costingInfo = getCostingFromInstitution();
 			
@@ -362,6 +422,7 @@ public class MBCAuctioneer extends Auctioneer{
 				GiveObjectPredicate give = new GiveObjectPredicate();
 				give.setData(costingInfo);
 				myAgent.getContentManager().fillContent(costingMessage, give);
+				// Send the costing info message
 				myAgent.send(costingMessage);
 			}catch(CodecException e){
 				e.printStackTrace();
@@ -446,17 +507,28 @@ public class MBCAuctioneer extends Auctioneer{
 			return costingInfo;
 		}
 		
-		
+		/**
+		 * Returns the index of a bidder in the solution. Will not 
+		 * handle duplicate bidder names but that is not allowed 
+		 * by JADE anyway.
+		 * 
+		 * Used when saving the log to match the route number with the bidder name.
+		 * @param bidderLocalName The local name of the bidder to find
+		 * @return The index of the bidder
+		 */
 		private int indexOfBidderInSolution(String bidderLocalName){
 			List<Route> solution = getAuctionBehaviour().getSolution();
 			for(int i = 0; i < solution.size(); i++){
-				System.out.println(solution.get(i).getRouteOwner());
 				if(solution.get(i).getRouteOwner() != null && solution.get(i).getRouteOwner().getLocalName().equals(bidderLocalName))
 					return i;
 			}
 			return -1;
 		}
 		
+		/**
+		 * 
+		 * @param timestamp Timestamp to append to the file name
+		 */
 		protected void handleBidderLogs(String timestamp){
 			List<List<String>> logs = new ArrayList<List<String>>();
 			List<String> logBidders = new ArrayList<String>();
@@ -509,14 +581,6 @@ public class MBCAuctioneer extends Auctioneer{
 					writer.append(","+ logBidders.get(i) +"(Route "+ indexOfBidderInSolution(logBidders.get(i)) +"),,");
 				}
 				writer.append("\n");
-				/*
-				// Write out the labels for the data
-				for(int i = 0; i < bidders.size(); i++){
-					writer.append("bid, cost, maxbid,");
-				}
-				writer.append("\n");
-				*/
-				
 				// Write out all of the log data
 				for(int i = 0; i < logLength; i++){
 					for(List<String> log : logs){
@@ -557,6 +621,8 @@ public class MBCAuctioneer extends Auctioneer{
 				totalCost += route.totalCost;
 			}
 			
+			String results = "";
+			
 			if(totalVisits == problem.visits.size()){
 				gui.setStatus("Done: Routes="+ getSolution().size() +" Visits="+ totalVisits +" Cost= £:"+ (int)totalCost +" E:"+ (int)totalEmissions +", T:"+ (int)totalTime +", D:"+ (int)totalDist);				
 				results += problem.name +"\t"+ getSolution().size() +"\t"+ totalVisits +"\t"+ totalCost +"\t"+ totalEmissions +"\t"+ totalTime +"\t"+ totalDist +"\t"+ gui.getReturnableVisits() +"\t"+ transportMode +"\t"+ minimiseFactor +"\n";
@@ -564,17 +630,10 @@ public class MBCAuctioneer extends Auctioneer{
 				gui.setStatus("Invalid solution. There are only "+ totalVisits +" of the supplied "+ problem.visits.size() +"visits.");
 				results += problem.name +"\t"+ getSolution().size() +",INVALID "+ totalVisits +" of "+ problem.visits.size() +".\n";
 			}
-			System.out.println(problem.name +" Done.");
+			
+			System.out.println(problem.name +" Done.");			
+			
 			gui.setStatus(problem.name +" Done. ("+ (currentProblem+1) +" of "+ files.size() +")");
-			
-			/*
-			System.out.println("Solution:\n"
-								+ "- routes = " + getSolution().size() + "\n"
-								+ "- visits = " + totalVisits + "\n"
-								+ "- cost = Money/Emissions/Time/Distance:"+ moneyCost +"\t"+ totalEmissions +"\t"+ totalTime +"\t"+ totalDist);
-			System.out.println(problem.name);
-			*/
-			
 			
 			// Save the results
 			String resPath = files.get(currentProblem);
