@@ -489,7 +489,7 @@ public class MBCAuctioneer extends Auctioneer{
 
 			List<Double> costingInfo = null;
 			
-			ACLMessage response = myAgent.blockingReceive(MessageTemplate.MatchConversationId(request.getConversationId()));
+			ACLMessage response = myAgent.blockingReceive(MessageTemplate.MatchConversationId("costing-response"));
 			try {
 				ContentElement d = myAgent.getContentManager().extractContent(response);
 				if (d instanceof GiveObjectPredicate) {

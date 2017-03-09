@@ -230,6 +230,7 @@ public class MBCInstitution extends Agent {
 				}
 			}
 			ACLMessage response = msg.createReply();
+			response.setConversationId("costing-response");
 			
 			// Add the costing array to the response
 			response.setLanguage(new SLCodec().getName());
