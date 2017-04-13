@@ -1,3 +1,4 @@
+
 import org.gicentre.utils.move.*;
 import org.gicentre.utils.stat.*;
 import java.awt.event.KeyEvent;
@@ -207,6 +208,7 @@ void drawInfo() {
   text("Emissions:"+ emSum, width/2, 28);
   text("Distance:"+ distSum, width/2, 42);
   text("Cost:"+ costSum, width/2, 56);
+  text("Route:"+ selectedIndex, width/2, height * 0.9);
 }
 
 
